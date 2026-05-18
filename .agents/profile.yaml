@@ -1,0 +1,19 @@
+project_name: Class_up
+project_type: lightweight-general
+project_version: 0.1.0
+project_lang: zh
+comment_lang: zh
+doc_mode: zh
+agent_adapters: []
+upstream:
+  repo: C:\code\VScode\Taotaotao
+  template: templates/lightweight-general
+  sync_strategy: manual
+override_whitelist:
+  - comments.language
+  - docs.split
+  - local.workflow
+mcp:
+  enabled: false
+  config_path: .agents/mcp/config.yaml
+  allowed_tools: []

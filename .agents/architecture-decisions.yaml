@@ -1,0 +1,9 @@
+decisions:
+  - id: ADR-0001
+    title: Lightweight governance source lives in .agents
+    status: active
+    summary: The project keeps stable rules, project profile, architecture decisions, and progress records under .agents as the minimum governance source.
+  - id: ADR-0002
+    title: Progress entries are the durable history
+    status: active
+    summary: PROGRESS.md is only a current index; durable context is written as dated entries under .agents/progress/entries/YYYY/.

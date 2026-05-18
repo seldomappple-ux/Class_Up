@@ -1,0 +1,33 @@
+project:
+  output_root: outputs
+
+media:
+  audio_sample_rate: 16000
+  audio_channels: 1
+  audio_format: wav
+  segment_seconds: 600
+  overlap_seconds: 30
+
+transcription:
+  provider: mock
+  endpoint: ""
+  model: ""
+  auth_type: api_key
+  api_key_env: CLASS_UP_TRANSCRIPTION_API_KEY
+  upload_limit_mb: 25
+  concurrency: 3
+  timeout_seconds: 120
+  max_retries: 3
+
+analysis:
+  provider: mock
+  endpoint: ""
+  model: ""
+  auth_type: api_key
+  api_key_env: CLASS_UP_ANALYSIS_API_KEY
+  timeout_seconds: 180
+  max_retries: 2
+
+output:
+  keep_intermediate: true
+  overwrite: false
