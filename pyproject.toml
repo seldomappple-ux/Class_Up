@@ -18,9 +18,16 @@ dependencies = [
 test = [
   "pytest>=8.0",
 ]
+web = [
+  "fastapi>=0.111",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9",
+]
 
 [project.scripts]
 class-up = "class_up.cli:main"
+class-up-web = "class_up.api.app:start"
+class-up-mock = "class_up.api.app:start_mock"
 
 [tool.setuptools.packages.find]
 where = ["src"]

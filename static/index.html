@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Class Up</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f5; color: #222; }
+  .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+  h1 { font-size: 1.4rem; margin-bottom: 24px; }
+  section { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+  section h2 { font-size: 1rem; margin-bottom: 14px; color: #555; }
+  label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: #444; }
+  input, select { width: 100%; padding: 7px 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 0.9rem; margin-bottom: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  button { background: #2563eb; color: #fff; border: none; padding: 9px 20px; border-radius: 5px; cursor: pointer; font-size: 0.9rem; }
+  button:disabled { background: #93c5fd; cursor: not-allowed; }
+  .stage { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 0.9rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: #ddd; flex-shrink: 0; }
+  .dot.pending  { background: #d1d5db; }
+  .dot.running  { background: #f59e0b; animation: pulse 1s infinite; }
+  .dot.success  { background: #22c55e; }
+  .dot.failed   { background: #ef4444; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .hidden { display: none; }
+  .preview { background: #f8f8f8; border: 1px solid #e5e5e5; border-radius: 5px; padding: 12px; font-size: 0.82rem; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-bottom: 10px; }
+  .dl-row { display: flex; gap: 10px; }
+  .dl-row a { background: #f3f4f6; border: 1px solid #ddd; border-radius: 5px; padding: 6px 14px; font-size: 0.85rem; text-decoration: none; color: #333; }
+  .dl-row a:hover { background: #e5e7eb; }
+  .error-msg { color: #ef4444; font-size: 0.85rem; margin-top: 8px; }
+  .job-list { list-style: none; }
+  .job-list li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.85rem; display: flex; justify-content: space-between; }
+  .job-list li:last-child { border-bottom: none; }
+  .job-link { color: #2563eb; cursor: pointer; text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Class Up — 网课转录助手</h1>
+
+  <!-- 表单 -->
+  <section>
+    <h2>新建任务</h2>
+    <form id="jobForm">
+      <label>视频文件</label>
+      <input type="file" id="videoFile" accept="video/*" required>
+
+      <label>API Key（转录服务）</label>
+      <input type="password" id="apiKey" placeholder="留空则使用 mock 模式">
+
+      <div class="row">
+        <div>
+          <label>Provider</label>
+          <select id="provider">
+            <option value="mock">mock（测试）</option>
+            <option value="openai">OpenAI Whisper</option>
+            <option value="remote">自定义远程</option>
+          </select>
+        </div>
+        <div>
+          <label>模型名称（可选）</label>
+          <input type="text" id="model" placeholder="whisper-1">
+        </div>
+      </div>
+
+      <label>Endpoint（自定义 provider 时填写）</label>
+      <input type="text" id="endpoint" placeholder="https://...">
+
+      <div class="row">
+        <div>
+          <label>分段时长（秒）</label>
+          <input type="number" id="segmentSeconds" value="600" min="60" max="1800">
+        </div>
+        <div>
+          <label>并发数</label>
+          <input type="number" id="concurrency" value="3" min="1" max="10">
+        </div>
+      </div>
+
+      <label>课程标题（可选）</label>
+      <input type="text" id="courseTitle" placeholder="自动使用文件名">
+
+      <button type="submit" id="submitBtn">开始转录</button>
+      <div class="error-msg hidden" id="formError"></div>
+    </form>
+  </section>
+
+  <!-- 进度 -->
+  <section id="progressSection" class="hidden">
+    <h2>任务进度</h2>
+    <div class="stage"><span class="dot" id="dot-m1"></span><span id="label-m1">M1 转录流水线</span></div>
+    <div class="stage"><span class="dot" id="dot-m2"></span><span id="label-m2">M2 知识点结构化</span></div>
+    <div class="stage"><span class="dot" id="dot-m3"></span><span id="label-m3">M3 视频切片</span></div>
+    <div class="error-msg hidden" id="progressError"></div>
+  </section>
+
+  <!-- 输出 -->
+  <section id="outputSection" class="hidden">
+    <h2>输出预览</h2>
+    <label>字幕（SRT，前 20 行）</label>
+    <div class="preview" id="srtPreview"></div>
+    <label>文稿（前 500 字）</label>
+    <div class="preview" id="transcriptPreview"></div>
+    <div class="dl-row" id="dlRow"></div>
+  </section>
+
+  <!-- 历史任务 -->
+  <section>
+    <h2>历史任务</h2>
+    <ul class="job-list" id="jobList"><li style="color:#aaa;font-size:.85rem">加载中...</li></ul>
+  </section>
+</div>
+
+<script>
+let pollTimer = null;
+let currentTaskId = null;
+
+const $ = id => document.getElementById(id);
+
+async function loadJobs() {
+  try {
+    const res = await fetch('/jobs');
+    const jobs = await res.json();
+    const ul = $('jobList');
+    if (!jobs.length) { ul.innerHTML = '<li style="color:#aaa;font-size:.85rem">暂无任务</li>'; return; }
+    ul.innerHTML = jobs.map(j => `
+      <li>
+        <span class="job-link" onclick="loadJob('${j.task_id}')">${j.course_title || j.task_id}</span>
+        <span style="color:${statusColor(j.status)}">${j.status}</span>
+      </li>`).join('');
+  } catch {}
+}
+
+function statusColor(s) {
+  return { success: '#22c55e', failed: '#ef4444', running: '#f59e0b' }[s] || '#aaa';
+}
+
+async function loadJob(taskId) {
+  currentTaskId = taskId;
+  $('progressSection').classList.remove('hidden');
+  $('outputSection').classList.add('hidden');
+  startPolling();
+}
+
+$('jobForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const file = $('videoFile').files[0];
+  if (!file) return;
+
+  $('submitBtn').disabled = true;
+  $('formError').classList.add('hidden');
+
+  const fd = new FormData();
+  fd.append('video', file);
+  fd.append('api_key', $('apiKey').value);
+  fd.append('provider', $('provider').value);
+  fd.append('endpoint', $('endpoint').value);
+  fd.append('model', $('model').value);
+  fd.append('course_title', $('courseTitle').value);
+  fd.append('segment_seconds', $('segmentSeconds').value);
+  fd.append('concurrency', $('concurrency').value);
+
+  try {
+    const res = await fetch('/jobs', { method: 'POST', body: fd });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    currentTaskId = data.task_id;
+    $('progressSection').classList.remove('hidden');
+    $('outputSection').classList.add('hidden');
+    startPolling();
+    loadJobs();
+  } catch (err) {
+    $('formError').textContent = '提交失败：' + err.message;
+    $('formError').classList.remove('hidden');
+  } finally {
+    $('submitBtn').disabled = false;
+  }
+});
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  poll();
+  pollTimer = setInterval(poll, 2000);
+}
+
+async function poll() {
+  if (!currentTaskId) return;
+  try {
+    const res = await fetch(`/jobs/${currentTaskId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    updateProgress(data);
+    if (data.status === 'success' || data.status === 'failed') {
+      clearInterval(pollTimer);
+      if (data.status === 'success') loadOutputs(data);
+      loadJobs();
+    }
+  } catch {}
+}
+
+function updateProgress(data) {
+  ['m1', 'm2', 'm3'].forEach(stage => {
+    const s = data.stages?.[stage]?.status || 'pending';
+    $(`dot-${stage}`).className = `dot ${s}`;
+  });
+  const err = data.stages?.m1?.error;
+  if (err) {
+    $('progressError').textContent = err.message || JSON.stringify(err);
+    $('progressError').classList.remove('hidden');
+  }
+}
+
+async function loadOutputs(data) {
+  $('outputSection').classList.remove('hidden');
+  const tid = data.task_id;
+
+  const [srtRes, txtRes] = await Promise.all([
+    fetch(`/jobs/${tid}/file/full_subtitle`),
+    fetch(`/jobs/${tid}/file/full_transcript`),
+  ]);
+
+  if (srtRes.ok) {
+    const srt = await srtRes.text();
+    $('srtPreview').textContent = srt.split('\n').slice(0, 20).join('\n');
+  }
+  if (txtRes.ok) {
+    const txt = await txtRes.text();
+    $('transcriptPreview').textContent = txt.slice(0, 500);
+  }
+
+  $('dlRow').innerHTML = `
+    <a href="/jobs/${tid}/file/full_subtitle" download="full_subtitle.srt">下载 SRT 字幕</a>
+    <a href="/jobs/${tid}/file/full_transcript" download="full_transcript.txt">下载文稿</a>
+  `;
+}
+
+loadJobs();
+
+window.addEventListener('beforeunload', () => {
+  navigator.sendBeacon('/shutdown');
+});
+</script>
+</body>
+</html>
