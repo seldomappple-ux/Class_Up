@@ -19,7 +19,7 @@ Use this file as a sliding index, not a long-form journal. Detailed history live
 
 | Page ID | Date | Title | Status | Path | Related Commit Message |
 | --- | --- | --- | --- | --- | --- |
-| `20260519-4` | `2026-05-19` | Implement Doubao ASR provider path | `draft` | `.agents/progress/entries/2026/2026-05-19-4.md` | feat(m1): add doubao asr provider and sftp upload path |
+| `20260519-4` | `2026-05-19` | Implement Doubao ASR provider path | `accepted` | `.agents/progress/entries/2026/2026-05-19-4.md` | feat(m1): add doubao asr provider and sftp upload path |
 | `20260519-3` | `2026-05-19` | Define Doubao ASR integration protocol | `draft` | `.agents/progress/entries/2026/2026-05-19-3.md` | docs(m1): define doubao asr integration protocol |
 | `20260519-2` | `2026-05-19` | Add FastAPI Web UI for M1 Pipeline | `draft` | `.agents/progress/entries/2026/2026-05-19-2.md` | feat(web): add FastAPI web UI with start/start_mock and auto-shutdown |
 | `20260519-1` | `2026-05-19` | Add one-click video to audio conversion command | `draft` | `.agents/progress/entries/2026/2026-05-19-1.md` | feat(audio): add standalone video to audio conversion command |
