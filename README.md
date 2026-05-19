@@ -38,3 +38,22 @@ python -m class_up.cli m1 输入视频.mp4 --config config\config.example.yaml -
 ```powershell
 python -m class_up.cli 输入视频.mp4 --config config\config.example.yaml
 ```
+
+Web UI：
+
+```powershell
+class-up-web
+```
+
+在 Web UI 的 API 选择栏中可以选择：
+
+- `mock 测试模式`：无需 API Key，用于本地冒烟。
+- `豆包语音识别`：填写豆包新版控制台 API Key 后，后端自动调用豆包录音识别。
+
+豆包真实调用还需要提前在 `.env` 或系统环境变量中配置 SFTP 上传信息：
+
+```dotenv
+CLASS_UP_UPLOAD_HOST=
+CLASS_UP_UPLOAD_USER=
+CLASS_UP_UPLOAD_KEY_PATH=
+```

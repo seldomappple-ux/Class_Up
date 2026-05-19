@@ -7,6 +7,7 @@ from typing import Any
 from class_up.config import AppConfig
 from class_up.manifest import Manifest, error_info
 from class_up.transcription.base import TranscriptionService
+from class_up.transcription.doubao import DoubaoTranscriptionError, DoubaoTranscriptionService
 from class_up.utils.filesystem import relative_to_root, resolve_under_root
 
 
@@ -52,6 +53,8 @@ class UnsupportedTranscriptionService(TranscriptionService):
 def create_transcription_service(config: AppConfig) -> TranscriptionService:
     if config.transcription.provider == "mock":
         return MockTranscriptionService(model=config.transcription.model)
+    if config.transcription.provider == "doubao":
+        return DoubaoTranscriptionService(config)
     return UnsupportedTranscriptionService(config.transcription.provider)
 
 
@@ -71,9 +74,12 @@ def transcribe_segments(manifest: Manifest, config: AppConfig, service: Transcri
             manifest.save()
             audio_path = resolve_under_root(manifest.output_dir, segment["audio_path"])
             result = service.transcribe(segment, audio_path)
+            review = result.pop("_review", None)
             validate_transcription_result(result)
             output_path = transcription_dir / f"{segment['segment_id']}.json"
             output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
+            if isinstance(review, dict):
+                manifest.add_review(review)
             manifest.update_segment(
                 segment["segment_id"],
                 status="success",
@@ -81,11 +87,14 @@ def transcribe_segments(manifest: Manifest, config: AppConfig, service: Transcri
                 error=None,
             )
         except Exception as exc:
+            retryable = True
+            if isinstance(exc, DoubaoTranscriptionError):
+                retryable = exc.retryable
             failure = error_info(
                 "TRANSCRIPTION_FAILED",
                 "transcription segment failed",
                 detail=str(exc),
-                retryable=True,
+                retryable=retryable,
             )
             manifest.update_segment(segment["segment_id"], status="failed", error=failure)
             manifest.add_error(failure)

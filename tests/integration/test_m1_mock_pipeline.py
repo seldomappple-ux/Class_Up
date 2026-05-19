@@ -1,6 +1,6 @@
 import json
 
-from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig
+from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig, UploadConfig
 from class_up.manifest import Manifest
 from class_up.transcription.merge import merge_transcriptions, write_m1_outputs
 from class_up.transcription.service import transcribe_segments
@@ -14,6 +14,7 @@ def test_m1_mock_pipeline_without_ffmpeg(tmp_path, monkeypatch):
         project=ProjectConfig(output_root=str(tmp_path / "outputs")),
         media=MediaConfig(),
         transcription=TranscriptionConfig(provider="mock"),
+        upload=UploadConfig(),
         analysis=AnalysisConfig(),
         output=OutputConfig(),
     )

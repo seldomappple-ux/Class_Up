@@ -14,10 +14,31 @@ transcription:
   model: ""
   auth_type: api_key
   api_key_env: CLASS_UP_TRANSCRIPTION_API_KEY
+  resource_id: ""
   upload_limit_mb: 25
   concurrency: 3
   timeout_seconds: 120
   max_retries: 3
+  poll_interval_seconds: 1
+  max_poll_seconds: 600
+  request:
+    enable_itn: true
+    enable_punc: true
+    enable_ddc: false
+    enable_speaker_info: false
+    enable_channel_split: false
+    show_utterances: true
+    vad_segment: true
+    sensitive_words_filter: ""
+
+upload:
+  provider: none
+  host_env: CLASS_UP_UPLOAD_HOST
+  port: 22
+  username_env: CLASS_UP_UPLOAD_USER
+  private_key_path_env: CLASS_UP_UPLOAD_KEY_PATH
+  remote_dir: /var/www/class-up/audio/
+  public_url_base: https://boneorbit.com/class-up/audio/
 
 analysis:
   provider: mock

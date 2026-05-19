@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from dotenv import load_dotenv
+
 from class_up.config import (
     AnalysisConfig,
     AppConfig,
@@ -12,8 +14,10 @@ from class_up.config import (
     OutputConfig,
     ProjectConfig,
     TranscriptionConfig,
+    UploadConfig,
 )
 from class_up.manifest import Manifest, load_or_create_manifest
+from class_up.manifest import error_info
 from class_up.media.audio import prepare_audio, segment_audio
 from class_up.media.ffmpeg import FfmpegError
 from class_up.transcription.merge import merge_transcriptions, write_m1_outputs
@@ -21,6 +25,7 @@ from class_up.transcription.service import transcribe_segments
 
 OUTPUT_ROOT = Path("outputs")
 UPLOADS_DIR = OUTPUT_ROOT / "uploads"
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def build_config(
@@ -32,7 +37,17 @@ def build_config(
     concurrency: int = 3,
     api_key_env: str = "CLASS_UP_TRANSCRIPTION_API_KEY",
 ) -> AppConfig:
-    os.environ[api_key_env] = api_key
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    load_dotenv(Path.cwd() / ".env", override=False)
+    provider = provider.strip() or "mock"
+    if provider == "doubao":
+        api_key_env = "CLASS_UP_DOUBAO_API_KEY"
+        endpoint = endpoint or "https://openspeech.bytedance.com"
+        model = model or "Doubao-\u5f55\u97f3\u6587\u4ef6\u8bc6\u522b2.0"
+    if api_key:
+        os.environ[api_key_env] = api_key
+    elif provider == "mock":
+        os.environ.setdefault(api_key_env, "mock")
     return AppConfig(
         project=ProjectConfig(output_root=str(OUTPUT_ROOT)),
         media=MediaConfig(segment_seconds=segment_seconds),
@@ -41,8 +56,10 @@ def build_config(
             endpoint=endpoint,
             model=model,
             api_key_env=api_key_env,
+            resource_id="volc.seedasr.auc" if provider == "doubao" else "",
             concurrency=concurrency,
         ),
+        upload=UploadConfig(provider="sftp" if provider == "doubao" else "none"),
         analysis=AnalysisConfig(),
         output=OutputConfig(),
     )
@@ -65,9 +82,10 @@ def run_m1_pipeline(manifest: Manifest, config: AppConfig) -> None:
         manifest.set_stage("m1", "success")
     except (FfmpegError, Exception) as exc:
         error = getattr(exc, "error", None)
+        if error is None:
+            error = error_info("M1_PIPELINE_FAILED", "M1 pipeline failed", detail=str(exc), retryable=False)
         manifest.set_stage("m1", "failed", error=error)
-        if error:
-            manifest.add_error(error)
+        manifest.add_error(error)
     finally:
         manifest.save()
 

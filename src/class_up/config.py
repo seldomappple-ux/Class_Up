@@ -32,10 +32,25 @@ class TranscriptionConfig:
     model: str = ""
     auth_type: str = "api_key"
     api_key_env: str = "CLASS_UP_TRANSCRIPTION_API_KEY"
+    resource_id: str = ""
     upload_limit_mb: float = 25
     concurrency: int = 3
     timeout_seconds: int = 120
     max_retries: int = 3
+    poll_interval_seconds: int = 1
+    max_poll_seconds: int = 600
+    request: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class UploadConfig:
+    provider: str = "none"
+    host_env: str = "CLASS_UP_UPLOAD_HOST"
+    port: int = 22
+    username_env: str = "CLASS_UP_UPLOAD_USER"
+    private_key_path_env: str = "CLASS_UP_UPLOAD_KEY_PATH"
+    remote_dir: str = "/var/www/class-up/audio/"
+    public_url_base: str = "https://boneorbit.com/class-up/audio/"
 
 
 @dataclass(frozen=True)
@@ -60,6 +75,7 @@ class AppConfig:
     project: ProjectConfig
     media: MediaConfig
     transcription: TranscriptionConfig
+    upload: UploadConfig
     analysis: AnalysisConfig
     output: OutputConfig
 
@@ -116,6 +132,7 @@ def load_config(config_path: str | Path, dotenv_path: str | Path | None = None) 
         project=ProjectConfig(**_section(data, "project")),
         media=MediaConfig(**_section(data, "media")),
         transcription=TranscriptionConfig(**_section(data, "transcription")),
+        upload=UploadConfig(**_section(data, "upload")),
         analysis=AnalysisConfig(**_section(data, "analysis")),
         output=OutputConfig(**_section(data, "output")),
     )
@@ -134,6 +151,14 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigError("transcription.concurrency must be greater than or equal to 1")
     if config.transcription.upload_limit_mb <= 0:
         raise ConfigError("transcription.upload_limit_mb must be greater than 0")
+    if config.transcription.poll_interval_seconds < 1:
+        raise ConfigError("transcription.poll_interval_seconds must be greater than or equal to 1")
+    if config.transcription.max_poll_seconds < config.transcription.poll_interval_seconds:
+        raise ConfigError("transcription.max_poll_seconds must be greater than or equal to poll_interval_seconds")
+    if config.upload.provider not in {"none", "sftp"}:
+        raise ConfigError("upload.provider must be one of: none, sftp")
+    if config.upload.port < 1:
+        raise ConfigError("upload.port must be greater than or equal to 1")
 
 
 def build_config_summary(config: AppConfig) -> dict[str, Any]:
@@ -145,10 +170,22 @@ def build_config_summary(config: AppConfig) -> dict[str, Any]:
             "model": config.transcription.model,
             "auth_type": config.transcription.auth_type,
             "api_key_env": config.transcription.api_key_env,
+            "resource_id": config.transcription.resource_id,
             "upload_limit_mb": config.transcription.upload_limit_mb,
             "concurrency": config.transcription.concurrency,
             "timeout_seconds": config.transcription.timeout_seconds,
             "max_retries": config.transcription.max_retries,
+            "poll_interval_seconds": config.transcription.poll_interval_seconds,
+            "max_poll_seconds": config.transcription.max_poll_seconds,
+        },
+        "upload": {
+            "provider": config.upload.provider,
+            "host_env": config.upload.host_env,
+            "port": config.upload.port,
+            "username_env": config.upload.username_env,
+            "private_key_path_env": config.upload.private_key_path_env,
+            "remote_dir": config.upload.remote_dir,
+            "public_url_base": config.upload.public_url_base,
         },
         "analysis": {
             "provider": config.analysis.provider,

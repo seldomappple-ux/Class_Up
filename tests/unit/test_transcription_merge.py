@@ -1,6 +1,6 @@
 import json
 
-from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig
+from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig, UploadConfig
 from class_up.manifest import Manifest
 from class_up.transcription.merge import merge_transcriptions
 
@@ -10,6 +10,7 @@ def _config() -> AppConfig:
         project=ProjectConfig(),
         media=MediaConfig(),
         transcription=TranscriptionConfig(),
+        upload=UploadConfig(),
         analysis=AnalysisConfig(),
         output=OutputConfig(),
     )

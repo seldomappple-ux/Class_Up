@@ -40,6 +40,8 @@ async def create_job(
     segment_seconds: float = Form(600),
     concurrency: int = Form(3),
 ):
+    if provider == "doubao" and not api_key.strip():
+        raise HTTPException(status_code=400, detail="选择豆包时必须填写 API Key")
     upload_id = uuid.uuid4().hex
     upload_dir = UPLOADS_DIR / upload_id
     upload_dir.mkdir(parents=True, exist_ok=True)

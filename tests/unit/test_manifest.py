@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig
+from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig, UploadConfig
 from class_up.manifest import Manifest, error_info
 
 
@@ -10,6 +10,7 @@ def _config(tmp_path: Path) -> AppConfig:
         project=ProjectConfig(output_root=str(tmp_path)),
         media=MediaConfig(),
         transcription=TranscriptionConfig(api_key_env="SECRET_ENV"),
+        upload=UploadConfig(),
         analysis=AnalysisConfig(),
         output=OutputConfig(),
     )
