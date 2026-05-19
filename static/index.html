@@ -6,47 +6,60 @@
 <title>Class Up</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; }
-body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #101318; color: #e6edf3; min-height: 100vh; }
-.shell { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100vh; }
-.sidebar { background: #171c24; border-right: 1px solid #273040; padding: 22px 12px; }
-.logo { font-weight: 700; color: #8fb3ff; padding: 0 8px 18px; border-bottom: 1px solid #273040; }
-.sidebar-label { color: #7d8796; font-size: 12px; margin: 18px 8px 8px; }
-.job-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
-.job-item:hover, .job-item.active { background: #202735; }
-.job-title { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.main { max-width: 920px; padding: 34px; }
-h1 { margin: 0 0 6px; font-size: 26px; }
-.sub { color: #8b98a8; margin-bottom: 24px; }
-.panel { background: #171c24; border: 1px solid #273040; border-radius: 8px; padding: 22px; margin-bottom: 18px; }
-.panel-title { color: #8fb3ff; font-size: 13px; font-weight: 700; margin-bottom: 16px; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fffbf2; color: #2d1f0e; min-height: 100vh; }
+.shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { background: #fff8ee; border-right: 1px solid #f0d9b0; padding: 20px 10px; }
+.logo { font-weight: 700; color: #c2600a; padding: 0 8px 16px; border-bottom: 1px solid #f0d9b0; font-size: 17px; }
+.sidebar-label { color: #b08050; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin: 16px 8px 8px; }
+.job-item { padding: 9px 12px; border-radius: 7px; cursor: pointer; margin-bottom: 3px; }
+.job-item:hover, .job-item.active { background: #fdefd8; }
+.job-title { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5c3a1e; }
+.main { max-width: 860px; padding: 32px; }
+h1 { margin: 0 0 4px; font-size: 24px; color: #2d1f0e; }
+.sub { color: #8a6040; margin-bottom: 22px; font-size: 14px; }
+.panel { background: #ffffff; border: 1px solid #f0d9b0; border-radius: 10px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(180,120,40,.07); }
+.panel-title { color: #c2600a; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 14px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .full { grid-column: 1 / -1; }
-label { display: block; color: #b3bdca; font-size: 13px; margin-bottom: 6px; }
-input, select { width: 100%; border: 1px solid #303a4b; background: #101318; color: #e6edf3; border-radius: 8px; padding: 10px 12px; font-size: 14px; }
-input:focus, select:focus { outline: none; border-color: #8fb3ff; }
-.drop { position: relative; border: 1px dashed #3b4658; border-radius: 8px; padding: 24px; text-align: center; color: #8b98a8; }
-.drop.drag, .drop:hover { border-color: #8fb3ff; background: #1c2330; }
+label { display: block; color: #6b4226; font-size: 13px; margin-bottom: 5px; font-weight: 500; }
+input, select { width: 100%; border: 1px solid #e8c98a; background: #fffdf7; color: #2d1f0e; border-radius: 7px; padding: 9px 11px; font-size: 14px; }
+input:focus, select:focus { outline: none; border-color: #e07820; box-shadow: 0 0 0 3px rgba(224,120,32,.12); }
+.drop { position: relative; border: 1.5px dashed #e8c98a; border-radius: 8px; padding: 22px; text-align: center; color: #b08050; font-size: 14px; }
+.drop.drag, .drop:hover { border-color: #e07820; background: #fff5e6; }
 .drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
-.file-name { color: #8fb3ff; margin-top: 8px; font-weight: 600; }
-.row { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
-button, .download { border: 0; border-radius: 8px; padding: 10px 18px; background: #467ce8; color: white; font-weight: 700; cursor: pointer; text-decoration: none; }
+.drop-clear { display: none; position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; background: #e07820; color: #fff; border: none; font-size: 13px; line-height: 1; cursor: pointer; z-index: 2; align-items: center; justify-content: center; padding: 0; }
+.drop:hover .drop-clear.visible { display: flex; }
+.file-name { color: #c2600a; margin-top: 6px; font-weight: 600; font-size: 13px; }
+.row { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+button, .download { border: 0; border-radius: 7px; padding: 9px 18px; background: linear-gradient(135deg, #f07820, #e05010); color: white; font-weight: 600; cursor: pointer; text-decoration: none; font-size: 14px; }
+button:hover { background: linear-gradient(135deg, #e06810, #c84000); }
 button:disabled { opacity: .45; cursor: not-allowed; }
-.download { background: transparent; border: 1px solid #303a4b; color: #b3bdca; }
-.badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700; }
-.pending { background: #202735; color: #8b98a8; }
-.running { background: #3a2a08; color: #f5c45f; }
-.success { background: #10351f; color: #4ade80; }
-.failed { background: #3b1218; color: #fb7185; }
-.stage { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #273040; }
-.stage:last-child { border-bottom: 0; }
-.preview { white-space: pre-wrap; max-height: 210px; overflow: auto; background: #101318; border: 1px solid #273040; border-radius: 8px; padding: 12px; color: #b3bdca; line-height: 1.6; font-family: "Cascadia Code", monospace; font-size: 13px; }
-.error { color: #fb7185; font-size: 13px; }
-.hint { color: #7d8796; font-size: 12px; margin-top: 6px; }
+.download { background: transparent; border: 1px solid #e8c98a; color: #6b4226; }
+.download:hover { border-color: #e07820; color: #c2600a; }
+.badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+.pending { background: #f5ede0; color: #b08050; }
+.running { background: #fef3c7; color: #b45309; }
+.success { background: #d1fae5; color: #065f46; }
+.failed { background: #fee2e2; color: #dc2626; }
+.skipped { background: #f5ede0; color: #b08050; }
+.hint { color: #b08050; font-size: 12px; margin-top: 5px; }
+.error { color: #dc2626; font-size: 13px; }
 .key-wrap { position: relative; }
-.key-wrap input { padding-right: 44px; }
-.key-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #7d8796; cursor: pointer; padding: 0; font-size: 15px; width: auto; }
-.key-toggle:hover { color: #8fb3ff; }
-@media (max-width: 760px) { .shell { grid-template-columns: 1fr; } .sidebar { position: static; } .main { padding: 20px; } .grid { grid-template-columns: 1fr; } }
+.key-wrap input { padding-right: 42px; }
+.key-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #b08050; cursor: pointer; padding: 0; font-size: 15px; width: auto; }
+.key-toggle:hover { color: #c2600a; }
+
+/* Progress */
+.big-progress { margin-top: 4px; }
+.big-progress-track { height: 28px; background: #f5ede0; border-radius: 14px; overflow: hidden; position: relative; }
+.big-progress-fill { height: 100%; border-radius: 14px; background: linear-gradient(90deg, #f07820, #e05010); transition: width .6s ease; position: relative; min-width: 0; }
+.big-progress-fill.indeterminate { animation: slide 1.6s linear infinite; background-size: 200% 100%; background-image: linear-gradient(90deg, #f07820 0%, #fbbf60 50%, #f07820 100%); width: 100% !important; }
+@keyframes slide { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
+.big-progress-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); pointer-events: none; }
+.big-progress-sub { font-size: 12px; color: #b08050; margin-top: 6px; }
+
+.preview { white-space: pre-wrap; max-height: 200px; overflow: auto; background: #fffdf7; border: 1px solid #f0d9b0; border-radius: 7px; padding: 12px; color: #6b4226; line-height: 1.6; font-family: "Cascadia Code", "Consolas", monospace; font-size: 12px; }
+@media (max-width: 720px) { .shell { grid-template-columns: 1fr; } .sidebar { position: static; } .main { padding: 18px; } .grid { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -54,7 +67,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   <aside class="sidebar">
     <div class="logo">Class Up</div>
     <div class="sidebar-label">历史任务</div>
-    <div id="jobList"><div class="hint">暂无任务</div></div>
+    <div id="jobList"><div class="hint" style="padding:0 8px">暂无任务</div></div>
   </aside>
   <main class="main">
     <h1>网课转录助手</h1>
@@ -67,6 +80,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
           <div class="full">
             <label>视频文件</label>
             <div class="drop" id="audioDrop">
+              <button type="button" class="drop-clear" id="audioClear">✕</button>
               <input type="file" id="audioVideoFile" accept="video/*">
               点击选择或拖入视频文件
               <div class="file-name hidden" id="audioFileName"></div>
@@ -91,6 +105,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
           <div class="full">
             <label>视频文件</label>
             <div class="drop" id="fileDrop">
+              <button type="button" class="drop-clear" id="fileClear">✕</button>
               <input type="file" id="videoFile" accept="video/*">
               点击选择或拖入视频文件
               <div class="file-name hidden" id="fileName"></div>
@@ -108,11 +123,11 @@ button:disabled { opacity: .45; cursor: not-allowed; }
           <div>
             <label>API Key</label>
             <div class="key-wrap">
-              <input type="password" id="apiKey" placeholder="选择豆包时填写新版控制台 API Key">
+              <input type="password" id="apiKey" placeholder="选择豆包时填写 API Key">
               <button type="button" class="key-toggle" id="keyToggle" tabindex="-1">👁</button>
             </div>
           </div>
-          <div id="modelRow" class="hidden"><label>模型名称</label><input type="text" id="model" placeholder="豆包默认 bigmodel"></div>
+          <div id="modelRow" class="hidden"><label>模型名称</label><input type="text" id="model" placeholder="豆包默认 Doubao-录音文件识别2.0"></div>
           <div id="endpointRow" class="hidden"><label>Endpoint</label><input type="text" id="endpoint" placeholder="豆包默认 https://openspeech.bytedance.com"></div>
           <div><label>分段时长 秒</label><input type="number" id="segmentSeconds" value="600" min="60" max="1800"></div>
           <div><label>并发数</label><input type="number" id="concurrency" value="2" min="1" max="10"></div>
@@ -126,11 +141,16 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     </section>
 
     <section class="panel hidden" id="progressSection">
-      <div class="panel-title">任务进度</div>
-      <div class="stage"><span>M1 转录流水线</span><span class="badge pending" id="badge-m1">等待中</span></div>
-      <div class="stage"><span>M2 知识点结构化</span><span class="badge pending" id="badge-m2">等待中</span></div>
-      <div class="stage"><span>M3 视频切片</span><span class="badge pending" id="badge-m3">等待中</span></div>
-      <div class="error hidden" id="progressError"></div>
+      <div class="panel-title">M1 转录进度</div>
+      <div class="big-progress">
+        <div class="big-progress-track">
+          <div class="big-progress-fill" id="bigFill">
+            <div class="big-progress-label" id="bigLabel">等待中</div>
+          </div>
+        </div>
+        <div class="big-progress-sub" id="bigSub"></div>
+      </div>
+      <div class="error hidden" id="progressError" style="margin-top:10px"></div>
     </section>
 
     <section class="panel hidden" id="outputSection">
@@ -150,21 +170,100 @@ let currentTaskId = null;
 const $ = id => document.getElementById(id);
 const statusLabel = { pending: '等待中', running: '进行中', success: '完成', failed: '失败', skipped: '跳过' };
 
-function bindDrop(dropId, inputId, nameId, titleTargetId) {
-  const drop = $(dropId);
-  const input = $(inputId);
+// 从 manifest 数据推导进度状态
+function deriveProgress(data) {
+  const m1 = data.stages?.m1?.status || 'pending';
+  const media = data.media || {};
+  const segs = data.segments || [];
+  const outputs = data.outputs || {};
+  const hasAudio = !!media.normalized_audio;
+  const hasSegs = segs.length > 0;
+  const total = segs.length;
+  const done = segs.filter(s => s.status === 'success').length;
+  const running = segs.filter(s => s.status === 'running').length;
+  const allTranscribed = total > 0 && done === total;
+  const hasMerged = !!(outputs.full_subtitle || outputs.full_transcript);
+  const hasOutput = !!(outputs.full_subtitle && outputs.full_transcript);
+
+  if (m1 === 'success' || hasOutput) return { pct: 100, label: '转录完成 ✓', sub: '', done: true, err: false };
+  if (m1 === 'failed') return { pct: null, label: '转录失败', sub: data.stages?.m1?.error?.message || '', done: true, err: true };
+
+  if (hasMerged) return { pct: 92, label: '生成字幕文稿...', sub: '', done: false };
+  if (allTranscribed) return { pct: 80, label: '合并识别结果...', sub: '', done: false };
+  if (total > 0) {
+    const pct = Math.round(20 + done / total * 55);
+    const sub = `语音识别：${done} / ${total} 段完成${running > 0 ? `，${running} 段进行中` : ''}`;
+    return { pct, label: '语音识别中...', sub, done: false };
+  }
+  if (hasSegs) return { pct: 18, label: '准备识别分段...', sub: `共 ${total} 段`, done: false };
+  if (hasAudio) return { pct: 12, label: '音频分段中...', sub: '', done: false };
+  if (m1 === 'running') return { pct: null, label: '提取音频...', sub: '', done: false };
+  return { pct: 0, label: '等待中', sub: '', done: false };
+}
+
+function renderProgress(data) {
+  const { pct, label, sub, done, err } = deriveProgress(data);
+  const fill = $('bigFill');
+  $('bigLabel').textContent = label;
+  $('bigSub').textContent = sub;
+  if (err) {
+    fill.style.width = '100%';
+    fill.classList.remove('indeterminate');
+    fill.style.background = '#dc2626';
+  } else if (done) {
+    fill.style.width = '100%';
+    fill.classList.remove('indeterminate');
+    fill.style.background = '';
+  } else if (pct === null) {
+    fill.style.width = '100%';
+    fill.classList.add('indeterminate');
+    fill.style.background = '';
+  } else {
+    fill.style.width = pct + '%';
+    fill.classList.remove('indeterminate');
+    fill.style.background = '';
+  }
+  const errInfo = data.stages?.m1?.error;
+  if (errInfo) {
+    $('progressError').textContent = errInfo.message || JSON.stringify(errInfo);
+    $('progressError').classList.remove('hidden');
+  } else {
+    $('progressError').classList.add('hidden');
+  }
+}
+
+function clearDrop(dropId, inputId, nameId, titleTargetId) {
+  const nameEl = $(nameId);
+  nameEl.textContent = '';
+  nameEl.classList.add('hidden');
+  $(dropId).querySelector('.drop-clear').classList.remove('visible');
+  if (titleTargetId) $(titleTargetId).value = '';
+  // reset file input
+  const inp = $(inputId);
+  inp.value = '';
+}
+
+function bindDrop(dropId, inputId, nameId, titleTargetId, clearId) {
+  const drop = $(dropId), input = $(inputId);
   drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('drag'); });
   drop.addEventListener('dragleave', () => drop.classList.remove('drag'));
   drop.addEventListener('drop', e => {
     e.preventDefault(); drop.classList.remove('drag');
-    if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; setFileName(e.dataTransfer.files[0], nameId, titleTargetId); }
+    if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; setFileName(e.dataTransfer.files[0], nameId, titleTargetId, clearId); }
   });
-  input.addEventListener('change', e => { if (e.target.files[0]) setFileName(e.target.files[0], nameId, titleTargetId); });
+  input.addEventListener('change', e => { if (e.target.files[0]) setFileName(e.target.files[0], nameId, titleTargetId, clearId); });
+  if (clearId) {
+    $(clearId).addEventListener('click', e => {
+      e.stopPropagation();
+      clearDrop(dropId, inputId, nameId, titleTargetId);
+    });
+  }
 }
 
-function setFileName(file, nameId, titleTargetId) {
+function setFileName(file, nameId, titleTargetId, clearId) {
   $(nameId).textContent = file.name;
   $(nameId).classList.remove('hidden');
+  if (clearId) $(clearId).classList.add('visible');
   if (titleTargetId && !$(titleTargetId).value) $(titleTargetId).value = file.name.replace(/\.[^.]+$/, '');
 }
 
@@ -173,7 +272,7 @@ function syncProviderDefaults() {
   const isDoubao = provider === 'doubao';
   const isRemote = provider === 'remote';
   if (isDoubao) {
-    $('providerHint').textContent = '豆包会使用 SFTP 上传分段音频，再调用新版控制台录音识别。';
+    $('providerHint').textContent = '豆包会使用 SFTP 上传分段音频，再调用录音识别。';
     $('model').value = 'Doubao-录音文件识别2.0';
     $('endpoint').value = 'https://openspeech.bytedance.com';
     $('concurrency').value = Math.min(Number($('concurrency').value || 2), 2);
@@ -184,21 +283,6 @@ function syncProviderDefaults() {
   }
   $('modelRow').classList.toggle('hidden', !isRemote);
   $('endpointRow').classList.toggle('hidden', !isRemote);
-}
-
-function setBadge(stage, status) {
-  const badge = $(`badge-${stage}`);
-  badge.className = `badge ${status}`;
-  badge.textContent = statusLabel[status] || status;
-}
-
-function updateProgress(data) {
-  ['m1', 'm2', 'm3'].forEach(stage => setBadge(stage, data.stages?.[stage]?.status || 'pending'));
-  const err = data.stages?.m1?.error;
-  if (err) {
-    $('progressError').textContent = err.message || JSON.stringify(err);
-    $('progressError').classList.remove('hidden');
-  }
 }
 
 async function loadOutputs(data) {
@@ -215,7 +299,7 @@ async function poll() {
   const res = await fetch(`/jobs/${currentTaskId}`);
   if (!res.ok) return;
   const data = await res.json();
-  updateProgress(data);
+  renderProgress(data);
   if (data.status === 'success' || data.status === 'failed') {
     clearInterval(pollTimer);
     if (data.status === 'success') loadOutputs(data);
@@ -240,7 +324,7 @@ async function loadJob(taskId) {
 async function loadJobs() {
   const jobs = await fetch('/jobs').then(r => r.json()).catch(() => []);
   const el = $('jobList');
-  if (!jobs.length) { el.innerHTML = '<div class="hint">暂无任务</div>'; return; }
+  if (!jobs.length) { el.innerHTML = '<div class="hint" style="padding:0 8px">暂无任务</div>'; return; }
   el.innerHTML = jobs.map(j => `<div class="job-item${j.task_id === currentTaskId ? ' active' : ''}" data-id="${j.task_id}" onclick="loadJob('${j.task_id}')"><div class="job-title">${j.course_title || j.task_id}</div><span class="badge ${j.status}">${statusLabel[j.status] || j.status}</span></div>`).join('');
 }
 
@@ -306,8 +390,8 @@ $('jobForm').addEventListener('submit', async e => {
   }
 });
 
-bindDrop('audioDrop', 'audioVideoFile', 'audioFileName');
-bindDrop('fileDrop', 'videoFile', 'fileName', 'courseTitle');
+bindDrop('audioDrop', 'audioVideoFile', 'audioFileName', null, 'audioClear');
+bindDrop('fileDrop', 'videoFile', 'fileName', 'courseTitle', 'fileClear');
 $('provider').addEventListener('change', syncProviderDefaults);
 $('keyToggle').addEventListener('click', () => {
   const inp = $('apiKey');
@@ -316,7 +400,6 @@ $('keyToggle').addEventListener('click', () => {
   $('keyToggle').textContent = show ? '🙈' : '👁';
 });
 
-// API Key 记忆
 const STORAGE_KEY = 'class_up_api_keys';
 function loadSavedKeys() {
   try {
@@ -330,8 +413,7 @@ function saveKey() {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
     const provider = $('provider').value;
     const key = $('apiKey').value.trim();
-    if (key) saved[provider] = key;
-    else delete saved[provider];
+    if (key) saved[provider] = key; else delete saved[provider];
     localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
   } catch {}
 }
