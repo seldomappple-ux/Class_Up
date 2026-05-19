@@ -13,6 +13,34 @@ from class_up.utils.filesystem import relative_to_root
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
 
 
+def convert_video_to_audio(
+    video_path: Path,
+    output_path: Path | None = None,
+    output_dir: Path | None = None,
+    audio_format: str = "wav",
+    sample_rate: int = 16000,
+    channels: int = 1,
+    overwrite: bool = False,
+) -> Path:
+    if audio_format != "wav":
+        raise ValueError("only wav output is supported in the current backend")
+    video_path = video_path.resolve()
+    if not video_path.exists():
+        raise FileNotFoundError(f"input video not found: {video_path}")
+    if output_path and output_dir:
+        raise ValueError("--output and --output-dir cannot be used together")
+    if output_path is None:
+        base_dir = output_dir.resolve() if output_dir else video_path.parent
+        output_path = base_dir / f"{video_path.stem}.{audio_format}"
+    else:
+        output_path = output_path.resolve()
+    if output_path.exists() and not overwrite:
+        raise ValueError(f"output file already exists, use --overwrite: {output_path}")
+    ffmpeg.require_tools()
+    ffmpeg.extract_audio(video_path, output_path, sample_rate, channels)
+    return output_path
+
+
 def prepare_audio(video_path: Path, manifest: Manifest, config: AppConfig) -> Path:
     ffmpeg.require_tools()
     duration = ffmpeg.probe_duration(video_path)

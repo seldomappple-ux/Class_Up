@@ -1,0 +1,39 @@
+curl -L -X POST 'https://openspeech.bytedance.com/api/v3/auc/bigmodel/submit' \
+-H 'Content-Type: application/json' \
+-H 'x-api-key: 954fd3f0-ee0b-4737-9cde-cb06d050aed0' \
+-H 'X-Api-Resource-Id: volc.seedasr.auc' \
+-H 'X-Api-Request-Id: 5acd55af-366f-416c-9b62-edbebc715969' \
+-H 'X-Api-Sequence: -1' \
+-d '{
+    "user": {
+      "uid": "豆包语音"
+    },
+    "audio": {
+      "url": "https://lf3-static.bytednsdoc.com/obj/eden-cn/lm_hz_ihsph/ljhwZthlaukjlkulzlp/console/bigtts/zh_female_cancan_mars_bigtts.mp3",
+      "format": "mp3",
+      "codec": "raw",
+      "rate": 16000,
+      "bits": 16,
+      "channel": 1
+    },
+    "request": {
+      "model_name": "bigmodel",
+      "enable_itn": true,
+      "enable_punc": false,
+      "enable_ddc": false,
+      "enable_speaker_info": false,
+      "enable_channel_split": false,
+      "show_utterances": false,
+      "vad_segment": false,
+      "sensitive_words_filter": ""
+    }
+  }'
+
+
+
+  curl -L -X POST 'https://openspeech.bytedance.com/api/v3/auc/bigmodel/query' \
+-H 'Content-Type: application/json' \
+-H 'x-api-key: cdfc8b1d-63d2-435d-8bde-0a60ef1653e0' \
+-H 'X-Api-Resource-Id: volc.seedasr.auc' \
+-H 'X-Api-Request-Id: 24ae5825-0382-49b9-9d5c-3942c40a80f0' \
+-d '{}'

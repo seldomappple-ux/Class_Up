@@ -12,3 +12,29 @@
 - `examples/`: 最小示例或演示用例
 - `tools/`: 项目辅助工具
 - `.agents/`: 轻量治理真源与进展记录
+
+## 当前命令
+
+开发态从源码运行时先设置包路径：
+
+```powershell
+$env:PYTHONPATH='src'
+```
+
+一键视频转音频：
+
+```powershell
+python -m class_up.cli audio 输入视频.mp4 --output 输出音频.wav --overwrite
+```
+
+M1 转录流水线：
+
+```powershell
+python -m class_up.cli m1 输入视频.mp4 --config config\config.example.yaml --output-root outputs --course-title 课程名
+```
+
+旧式 M1 调用仍兼容：
+
+```powershell
+python -m class_up.cli 输入视频.mp4 --config config\config.example.yaml
+```

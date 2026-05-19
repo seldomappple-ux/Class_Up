@@ -19,6 +19,8 @@ Use this file as a sliding index, not a long-form journal. Detailed history live
 
 | Page ID | Date | Title | Status | Path | Related Commit Message |
 | --- | --- | --- | --- | --- | --- |
+| `20260519-2` | `2026-05-19` | Add FastAPI Web UI for M1 Pipeline | `draft` | `.agents/progress/entries/2026/2026-05-19-2.md` | feat(web): add FastAPI web UI with start/start_mock and auto-shutdown |
+| `20260519-1` | `2026-05-19` | Add one-click video to audio conversion command | `draft` | `.agents/progress/entries/2026/2026-05-19-1.md` | feat(audio): add standalone video to audio conversion command |
 | `20260518-11` | `2026-05-18` | Implement M1 backend mock transcription pipeline | `draft` | `.agents/progress/entries/2026/2026-05-18-11.md` | feat(m1): implement backend mock transcription pipeline |
 | `20260518-10` | `2026-05-18` | Resolve data protocol ambiguities | `draft` | `.agents/progress/entries/2026/2026-05-18-10.md` | docs(protocol): resolve data protocol ambiguities |
 | `20260518-9` | `2026-05-18` | Add full data protocol for development workflow | `draft` | `.agents/progress/entries/2026/2026-05-18-9.md` | docs(protocol): add full data protocol for workflow |
