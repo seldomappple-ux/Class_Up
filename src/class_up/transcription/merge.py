@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 from class_up.manifest import Manifest
 from class_up.transcription.srt import render_srt
-from class_up.utils.filesystem import resolve_under_root
+from class_up.utils.filesystem import resolve_under_root, safe_filename
 
 
 def merge_transcriptions(manifest: Manifest) -> list[dict[str, Any]]:
@@ -46,11 +47,29 @@ def merge_transcriptions(manifest: Manifest) -> list[dict[str, Any]]:
 
 
 def write_m1_outputs(manifest: Manifest, items: list[dict[str, Any]]) -> tuple[Path, Path]:
-    subtitle_path = manifest.output_dir / "full_subtitle.srt"
-    transcript_path = manifest.output_dir / "full_transcript.txt"
+    source_stem = safe_filename(manifest.data.get("input", {}).get("source_stem") or manifest.data.get("input", {}).get("course_title") or "transcript")
+    run_suffix = _output_run_suffix(manifest.output_dir)
+    subtitle_path = _unique_output_path(manifest.output_dir / f"{source_stem}_Subtitles{run_suffix}.srt")
+    transcript_path = _unique_output_path(manifest.output_dir / f"{source_stem}_text{run_suffix}.txt")
     subtitle_path.write_text(render_srt(items), encoding="utf-8")
     transcript_path.write_text("\n".join(item["text"] for item in items) + ("\n" if items else ""), encoding="utf-8")
     manifest.set_output("full_subtitle", subtitle_path)
     manifest.set_output("full_transcript", transcript_path)
     manifest.save()
     return subtitle_path, transcript_path
+
+
+def _output_run_suffix(output_dir: Path) -> str:
+    match = re.search(r"_(\d+)$", output_dir.name)
+    return f"_{match.group(1)}" if match else ""
+
+
+def _unique_output_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    counter = 2
+    while True:
+        candidate = path.with_name(f"{path.stem}_{counter}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        counter += 1

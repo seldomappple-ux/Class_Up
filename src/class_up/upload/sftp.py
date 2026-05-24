@@ -8,6 +8,12 @@ from class_up.config import UploadConfig
 from class_up.upload.base import UploadedAudio, UploadService
 
 
+class UploadError(RuntimeError):
+    def __init__(self, message: str, retryable: bool = True):
+        super().__init__(message)
+        self.retryable = retryable
+
+
 class SftpUploadService(UploadService):
     def __init__(self, config: UploadConfig):
         self.config = config
@@ -30,14 +36,34 @@ class SftpUploadService(UploadService):
 
         remote_dir = self.config.remote_dir.rstrip("/")
         remote_path = f"{remote_dir}/{remote_name}"
+        local_size = local_path.stat().st_size
         client = paramiko.SSHClient()
         client.load_system_host_keys()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         try:
-            client.connect(hostname=host, port=self.config.port, username=username, key_filename=key_path, timeout=30)
-            sftp = client.open_sftp()
             try:
-                sftp.put(str(local_path), remote_path)
+                client.connect(hostname=host, port=self.config.port, username=username, key_filename=key_path, timeout=30)
+            except Exception as exc:
+                raise UploadError(f"SFTP connection failed: {exc}") from exc
+            try:
+                sftp = client.open_sftp()
+            except Exception as exc:
+                raise UploadError(f"SFTP session failed: {exc}") from exc
+            try:
+                try:
+                    sftp.put(str(local_path), remote_path)
+                    remote_size = sftp.stat(remote_path).st_size
+                except Exception as exc:
+                    raise UploadError(f"SFTP upload failed: remote_path={remote_path}, detail={exc}") from exc
+                if remote_size != local_size:
+                    try:
+                        sftp.remove(remote_path)
+                    except Exception:
+                        pass
+                    raise UploadError(
+                        "SFTP upload size mismatch: "
+                        f"remote_path={remote_path}, local_size={local_size}, remote_size={remote_size}"
+                    )
             finally:
                 sftp.close()
         finally:

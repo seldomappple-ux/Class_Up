@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -69,6 +70,11 @@ def run_m1_pipeline(manifest: Manifest, config: AppConfig) -> None:
     manifest.set_stage("m1", "running")
     manifest.save()
     try:
+        if _reuse_completed_m1_cache(manifest):
+            merged = merge_transcriptions(manifest)
+            write_m1_outputs(manifest, merged)
+            manifest.set_stage("m1", "success")
+            return
         video_path = Path(manifest.data["input"]["video_path"])
         if not manifest.data["media"].get("normalized_audio"):
             audio_path = prepare_audio(video_path, manifest, config)
@@ -90,6 +96,83 @@ def run_m1_pipeline(manifest: Manifest, config: AppConfig) -> None:
         manifest.save()
 
 
+def _reuse_completed_m1_cache(manifest: Manifest) -> bool:
+    source_hash = manifest.data.get("media", {}).get("source_video", {}).get("sha256")
+    if not source_hash:
+        return False
+    current_summary = manifest.data.get("config_summary", {})
+    for candidate_path in OUTPUT_ROOT.rglob("manifest.json"):
+        if candidate_path.resolve() == manifest.path.resolve():
+            continue
+        try:
+            candidate = Manifest.load(candidate_path)
+        except Exception:
+            continue
+        if not _cache_candidate_matches(manifest, candidate, source_hash, current_summary):
+            continue
+        if not _copy_cached_intermediate(candidate, manifest):
+            continue
+        current_source_video = manifest.data.get("media", {}).get("source_video")
+        manifest.data["media"] = dict(candidate.data["media"])
+        if current_source_video:
+            manifest.data["media"]["source_video"] = current_source_video
+        manifest.data["segments"] = [dict(segment) for segment in candidate.data["segments"]]
+        manifest.add_review(
+            {
+                "type": "m1_cache_reuse",
+                "source_task_id": candidate.data.get("task_id"),
+                "source_output_dir": str(candidate.output_dir),
+                "message": "Reused completed M1 intermediate audio, segments, and transcription results for identical source video and config.",
+            }
+        )
+        manifest.save()
+        return True
+    return False
+
+
+def _cache_candidate_matches(
+    current: Manifest,
+    candidate: Manifest,
+    source_hash: str,
+    current_summary: dict[str, Any],
+) -> bool:
+    if candidate.data.get("status") != "success":
+        return False
+    if candidate.data.get("stages", {}).get("m1", {}).get("status") != "success":
+        return False
+    candidate_hash = candidate.data.get("media", {}).get("source_video", {}).get("sha256")
+    if candidate_hash != source_hash:
+        return False
+    if not candidate.data.get("segments"):
+        return False
+    if any(segment.get("status") != "success" or not segment.get("transcription_path") for segment in candidate.data["segments"]):
+        return False
+    return _cache_relevant_config(current_summary) == _cache_relevant_config(candidate.data.get("config_summary", {}))
+
+
+def _cache_relevant_config(summary: dict[str, Any]) -> dict[str, Any]:
+    transcription = summary.get("transcription", {})
+    return {
+        "media": summary.get("media", {}),
+        "transcription": {
+            "provider": transcription.get("provider"),
+            "endpoint_host": transcription.get("endpoint_host"),
+            "model": transcription.get("model"),
+            "resource_id": transcription.get("resource_id"),
+            "upload_limit_mb": transcription.get("upload_limit_mb"),
+        },
+    }
+
+
+def _copy_cached_intermediate(source: Manifest, target: Manifest) -> bool:
+    source_intermediate = source.output_dir / "intermediate"
+    if not source_intermediate.exists():
+        return False
+    target_intermediate = target.output_dir / "intermediate"
+    shutil.copytree(source_intermediate, target_intermediate, dirs_exist_ok=True)
+    return True
+
+
 async def start_job(
     video_path: Path,
     api_key: str,
@@ -101,7 +184,7 @@ async def start_job(
     concurrency: int = 3,
 ) -> dict[str, Any]:
     config = build_config(api_key, provider, endpoint, model, segment_seconds, concurrency)
-    manifest = load_or_create_manifest(video_path, OUTPUT_ROOT, config, course_title)
+    manifest = load_or_create_manifest(video_path, OUTPUT_ROOT, config, course_title, source_filename=video_path.name)
     asyncio.get_event_loop().run_in_executor(None, run_m1_pipeline, manifest, config)
     return {"task_id": manifest.data["task_id"], "output_dir": str(manifest.output_dir)}
 

@@ -11,6 +11,7 @@ dist/
 *.egg-info/
 outputs/
 examples/media/
+ffmpeg*/
 *.mp4
 *.mkv
 *.mov

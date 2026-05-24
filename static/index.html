@@ -126,6 +126,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
               <input type="password" id="apiKey" placeholder="选择豆包时填写 API Key">
               <button type="button" class="key-toggle" id="keyToggle" tabindex="-1">👁</button>
             </div>
+            <div class="hint" id="apiKeyStatus"></div>
           </div>
           <div id="modelRow" class="hidden"><label>模型名称</label><input type="text" id="model" placeholder="豆包默认 Doubao-录音文件识别2.0"></div>
           <div id="endpointRow" class="hidden"><label>Endpoint</label><input type="text" id="endpoint" placeholder="豆包默认 https://openspeech.bytedance.com"></div>
@@ -167,6 +168,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 <script>
 let pollTimer = null;
 let currentTaskId = null;
+let savedApiKeyAvailable = false;
+let apiKeySaveTimer = null;
 const $ = id => document.getElementById(id);
 const statusLabel = { pending: '等待中', running: '进行中', success: '完成', failed: '失败', skipped: '跳过' };
 
@@ -291,7 +294,14 @@ async function loadOutputs(data) {
   const [srt, txt] = await Promise.all([fetch(`/jobs/${tid}/file/full_subtitle`), fetch(`/jobs/${tid}/file/full_transcript`)]);
   if (srt.ok) $('srtPreview').textContent = (await srt.text()).split('\n').slice(0, 20).join('\n');
   if (txt.ok) $('transcriptPreview').textContent = (await txt.text()).slice(0, 500);
-  $('dlRow').innerHTML = `<a class="download" href="/jobs/${tid}/file/full_subtitle" download="full_subtitle.srt">下载 SRT</a><a class="download" href="/jobs/${tid}/file/full_transcript" download="full_transcript.txt">下载文稿</a>`;
+  const subtitleName = fileNameFromPath(data.outputs?.full_subtitle) || 'subtitle.srt';
+  const transcriptName = fileNameFromPath(data.outputs?.full_transcript) || 'transcript.txt';
+  $('dlRow').innerHTML = `<a class="download" href="/jobs/${tid}/file/full_subtitle" download="${subtitleName}">下载 SRT</a><a class="download" href="/jobs/${tid}/file/full_transcript" download="${transcriptName}">下载文稿</a>`;
+}
+
+function fileNameFromPath(path) {
+  if (!path) return '';
+  return String(path).split(/[\\/]/).pop();
 }
 
 async function poll() {
@@ -360,12 +370,12 @@ $('jobForm').addEventListener('submit', async e => {
   const file = $('videoFile').files[0];
   const provider = $('provider').value;
   if (!file) { $('formError').textContent = '请选择视频文件'; $('formError').classList.remove('hidden'); return; }
-  if (provider === 'doubao' && !$('apiKey').value.trim()) { $('formError').textContent = '选择豆包时必须填写 API Key'; $('formError').classList.remove('hidden'); return; }
+  if (provider === 'doubao' && !$('apiKey').value.trim() && !savedApiKeyAvailable) { $('formError').textContent = '选择豆包时必须填写 API Key'; $('formError').classList.remove('hidden'); return; }
   $('submitBtn').disabled = true;
   $('formError').classList.add('hidden');
   const fd = new FormData();
   fd.append('video', file);
-  fd.append('api_key', $('apiKey').value);
+  fd.append('api_key', $('apiKey').value.trim());
   fd.append('provider', provider);
   fd.append('endpoint', $('endpoint').value);
   fd.append('model', $('model').value);
@@ -392,7 +402,6 @@ $('jobForm').addEventListener('submit', async e => {
 
 bindDrop('audioDrop', 'audioVideoFile', 'audioFileName', null, 'audioClear');
 bindDrop('fileDrop', 'videoFile', 'fileName', 'courseTitle', 'fileClear');
-$('provider').addEventListener('change', syncProviderDefaults);
 $('keyToggle').addEventListener('click', () => {
   const inp = $('apiKey');
   const show = inp.type === 'password';
@@ -400,27 +409,71 @@ $('keyToggle').addEventListener('click', () => {
   $('keyToggle').textContent = show ? '🙈' : '👁';
 });
 
-const STORAGE_KEY = 'class_up_api_keys';
-function loadSavedKeys() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const provider = $('provider').value;
-    if (saved[provider]) $('apiKey').value = saved[provider];
-  } catch {}
+function setApiKeyStatus(message, isError = false) {
+  const el = $('apiKeyStatus');
+  el.textContent = message;
+  el.classList.toggle('error', isError);
+  el.classList.toggle('hint', !isError);
 }
-function saveKey() {
+
+async function loadSavedKeyStatus() {
+  const provider = $('provider').value;
+  $('apiKey').value = '';
+  savedApiKeyAvailable = false;
+  if (!['doubao', 'remote'].includes(provider)) {
+    setApiKeyStatus('');
+    return;
+  }
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    const provider = $('provider').value;
-    const key = $('apiKey').value.trim();
-    if (key) saved[provider] = key; else delete saved[provider];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
-  } catch {}
+    const res = await fetch(`/settings/api-key/${provider}`);
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    savedApiKeyAvailable = !!data.has_value;
+    if (data.has_value) {
+      $('apiKey').placeholder = `已保存 ${data.masked_value}，留空可直接使用`;
+      setApiKeyStatus(`已保存到本机 .env，并记录到 ${data.audit_path}`);
+    } else {
+      $('apiKey').placeholder = provider === 'doubao' ? '选择豆包时填写 API Key' : '填写远程服务 API Key';
+      setApiKeyStatus('输入后将自动保存到本机 .env，并留下掩码审计记录');
+    }
+  } catch (err) {
+    setApiKeyStatus(`读取已保存 Key 失败：${err.message}`, true);
+  }
 }
-$('provider').addEventListener('change', () => { $('apiKey').value = ''; loadSavedKeys(); });
-$('apiKey').addEventListener('change', saveKey);
+
+async function saveKeyToServer() {
+  const provider = $('provider').value;
+  const key = $('apiKey').value.trim();
+  if (!['doubao', 'remote'].includes(provider) || !key) return;
+  try {
+    const fd = new FormData();
+    fd.append('provider', provider);
+    fd.append('api_key', key);
+    const res = await fetch('/settings/api-key', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => null);
+      throw new Error(detail?.detail || await res.text());
+    }
+    const data = await res.json();
+    savedApiKeyAvailable = true;
+    setApiKeyStatus(`已自动保存 ${data.masked_value}，并记录到 ${data.audit_path}`);
+  } catch (err) {
+    setApiKeyStatus(`自动保存失败：${err.message}`, true);
+  }
+}
+
+$('provider').addEventListener('change', async () => {
+  syncProviderDefaults();
+  await loadSavedKeyStatus();
+});
+$('apiKey').addEventListener('input', () => {
+  setApiKeyStatus('正在等待输入完成后自动保存...');
+  if (apiKeySaveTimer) clearTimeout(apiKeySaveTimer);
+  apiKeySaveTimer = setTimeout(saveKeyToServer, 700);
+});
+$('apiKey').addEventListener('blur', saveKeyToServer);
 syncProviderDefaults();
-loadSavedKeys();
+loadSavedKeyStatus();
 loadJobs();
 </script>
 </body>

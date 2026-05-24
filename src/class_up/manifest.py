@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -33,10 +34,18 @@ class Manifest:
         self.data = data
 
     @classmethod
-    def create(cls, video_path: Path, output_root: Path, config: AppConfig, course_title: str | None = None) -> "Manifest":
+    def create(
+        cls,
+        video_path: Path,
+        output_root: Path,
+        config: AppConfig,
+        course_title: str | None = None,
+        source_filename: str | None = None,
+    ) -> "Manifest":
         video_path = video_path.resolve()
+        source_name = source_filename or video_path.name
         title = safe_filename(course_title or video_path.stem)
-        output_dir = ensure_directory((output_root / title).resolve())
+        output_dir = ensure_directory(_next_output_dir(output_root, title))
         created_at = now_iso()
         data: dict[str, Any] = {
             "schema_version": "1.0",
@@ -46,7 +55,8 @@ class Manifest:
             "status": "pending",
             "input": {
                 "video_path": str(video_path),
-                "video_filename": video_path.name,
+                "video_filename": source_name,
+                "source_stem": safe_filename(Path(source_name).stem),
                 "course_title": title,
                 "metadata": {"lecturer": "", "chapter": "", "tags": []},
             },
@@ -62,6 +72,7 @@ class Manifest:
                     "path": str(video_path),
                     "format": video_path.suffix.lstrip(".").lower(),
                     "size_bytes": video_path.stat().st_size if video_path.exists() else None,
+                    "sha256": file_sha256(video_path) if video_path.exists() else None,
                 },
                 "normalized_audio": None,
             },
@@ -154,9 +165,30 @@ def load_or_create_manifest(
     config: AppConfig,
     course_title: str | None = None,
     resume_manifest: Path | None = None,
+    source_filename: str | None = None,
 ) -> Manifest:
     if resume_manifest and resume_manifest.exists():
         return Manifest.load(resume_manifest)
-    manifest = Manifest.create(video_path, output_root, config, course_title)
+    manifest = Manifest.create(video_path, output_root, config, course_title, source_filename)
     manifest.save()
     return manifest
+
+
+def _next_output_dir(output_root: Path, title: str) -> Path:
+    base = (output_root / title).resolve()
+    if not base.exists():
+        return base
+    counter = 2
+    while True:
+        candidate = (output_root / f"{title}_{counter}").resolve()
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()

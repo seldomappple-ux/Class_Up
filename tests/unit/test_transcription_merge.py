@@ -2,7 +2,7 @@ import json
 
 from class_up.config import AnalysisConfig, AppConfig, MediaConfig, OutputConfig, ProjectConfig, TranscriptionConfig, UploadConfig
 from class_up.manifest import Manifest
-from class_up.transcription.merge import merge_transcriptions
+from class_up.transcription.merge import merge_transcriptions, write_m1_outputs
 
 
 def _config() -> AppConfig:
@@ -101,3 +101,33 @@ def test_merge_uses_index_not_segment_id(tmp_path):
     merged = merge_transcriptions(manifest)
     assert [item["text"] for item in merged] == ["first", "second"]
     assert [item["source_segment_id"] for item in merged] == ["segment-0003a", "segment-0002"]
+
+
+def test_write_m1_outputs_uses_source_filename_labels(tmp_path):
+    video = tmp_path / "lesson.mp4"
+    video.write_bytes(b"video")
+    manifest = Manifest.create(video, tmp_path / "outputs", _config(), source_filename="原始课程.mp4")
+
+    subtitle, transcript = write_m1_outputs(
+        manifest,
+        [{"item_id": "1", "source_segment_id": "segment-0001", "start": 0.0, "end": 1.0, "text": "hello"}],
+    )
+
+    assert subtitle.name == "原始课程_Subtitles.srt"
+    assert transcript.name == "原始课程_text.txt"
+
+
+def test_write_m1_outputs_adds_run_suffix_for_repeated_output_dir(tmp_path):
+    video = tmp_path / "lesson.mp4"
+    video.write_bytes(b"video")
+    (tmp_path / "outputs" / "course").mkdir(parents=True)
+    manifest = Manifest.create(video, tmp_path / "outputs", _config(), course_title="course", source_filename="lesson.mp4")
+
+    subtitle, transcript = write_m1_outputs(
+        manifest,
+        [{"item_id": "1", "source_segment_id": "segment-0001", "start": 0.0, "end": 1.0, "text": "hello"}],
+    )
+
+    assert manifest.output_dir.name == "course_2"
+    assert subtitle.name == "lesson_Subtitles_2.srt"
+    assert transcript.name == "lesson_text_2.txt"

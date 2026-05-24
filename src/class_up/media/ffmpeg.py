@@ -1,12 +1,22 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from class_up.manifest import error_info
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+TOOL_PATH_AUDIT_PATH = Path("outputs") / "system" / "tool_path_events.jsonl"
+_TOOLS_RECORDED = False
+_DOTENV_LOADED = False
 
 
 class FfmpegError(RuntimeError):
@@ -23,10 +33,72 @@ class CommandResult:
     stderr: str
 
 
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def _bundled_tool_candidates(tool: str) -> list[Path]:
+    exe = f"{tool}.exe" if os.name == "nt" else tool
+    candidates = [PROJECT_ROOT / exe, PROJECT_ROOT / "bin" / exe]
+    candidates.extend(sorted(PROJECT_ROOT.glob(f"ffmpeg*/bin/{exe}")))
+    return candidates
+
+
+def _ensure_dotenv_loaded() -> None:
+    global _DOTENV_LOADED
+    if _DOTENV_LOADED:
+        return
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    _DOTENV_LOADED = True
+
+
+def resolve_tool_path(tool: str) -> str | None:
+    _ensure_dotenv_loaded()
+    env_name = f"CLASS_UP_{tool.upper()}_PATH"
+    env_path = os.environ.get(env_name, "").strip()
+    if env_path:
+        path = Path(env_path)
+        if path.exists():
+            return str(path)
+        return None
+
+    for path in _bundled_tool_candidates(tool):
+        if path.exists():
+            return str(path)
+
+    return shutil.which(tool)
+
+
+def tool_command(tool: str) -> str:
+    path = resolve_tool_path(tool)
+    if path is None:
+        raise FfmpegError(f"required media tool not found: {tool}", code="FFMPEG_NOT_FOUND")
+    return path
+
+
+def _record_tool_paths(ffmpeg_path: str, ffprobe_path: str) -> None:
+    global _TOOLS_RECORDED
+    if _TOOLS_RECORDED:
+        return
+    TOOL_PATH_AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "timestamp": _now_iso(),
+        "tool": "ffmpeg",
+        "ffmpeg_path": ffmpeg_path,
+        "ffprobe_path": ffprobe_path,
+        "source": "media.ffmpeg.require_tools",
+    }
+    with TOOL_PATH_AUDIT_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    _TOOLS_RECORDED = True
+
+
 def require_tools() -> None:
-    missing = [tool for tool in ("ffmpeg", "ffprobe") if shutil.which(tool) is None]
+    paths = {tool: resolve_tool_path(tool) for tool in ("ffmpeg", "ffprobe")}
+    missing = [tool for tool, path in paths.items() if path is None]
     if missing:
         raise FfmpegError(f"required media tool not found: {', '.join(missing)}", code="FFMPEG_NOT_FOUND")
+    _record_tool_paths(paths["ffmpeg"] or "", paths["ffprobe"] or "")
 
 
 def run_command(args: list[str]) -> CommandResult:
@@ -40,7 +112,7 @@ def run_command(args: list[str]) -> CommandResult:
 def probe_duration(video_path: Path) -> float:
     result = run_command(
         [
-            "ffprobe",
+            tool_command("ffprobe"),
             "-v",
             "error",
             "-show_entries",
@@ -58,7 +130,7 @@ def extract_audio(video_path: Path, output_path: Path, sample_rate: int, channel
     output_path.parent.mkdir(parents=True, exist_ok=True)
     run_command(
         [
-            "ffmpeg",
+            tool_command("ffmpeg"),
             "-y",
             "-i",
             str(video_path),
@@ -78,7 +150,7 @@ def cut_audio(source_audio: Path, output_path: Path, start: float, duration: flo
     output_path.parent.mkdir(parents=True, exist_ok=True)
     run_command(
         [
-            "ffmpeg",
+            tool_command("ffmpeg"),
             "-y",
             "-ss",
             f"{start:.3f}",

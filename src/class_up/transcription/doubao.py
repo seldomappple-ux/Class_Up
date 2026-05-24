@@ -87,35 +87,47 @@ class DoubaoTranscriptionService(TranscriptionService):
             "request": self._request_payload(),
         }
 
-        with httpx.Client(timeout=timeout) as client:
-            submit_headers = dict(base_headers)
-            submit_headers["X-Api-Sequence"] = "-1"
-            submit_response = client.post(submit_url, headers=submit_headers, json=payload)
-            submit_meta = _safe_response_meta(submit_response)
-            submit_code = submit_response.headers.get("X-Api-Status-Code", "")
-            if submit_code != SUCCESS_CODE:
-                raise DoubaoTranscriptionError(submit_code, submit_response.headers.get("X-Api-Message", ""), _is_retryable(submit_code))
+        try:
+            with httpx.Client(timeout=timeout) as client:
+                submit_headers = dict(base_headers)
+                submit_headers["X-Api-Sequence"] = "-1"
+                submit_response = client.post(submit_url, headers=submit_headers, json=payload)
+                submit_meta = _safe_response_meta(submit_response)
+                submit_code = submit_response.headers.get("X-Api-Status-Code", "")
+                if submit_code != SUCCESS_CODE:
+                    raise DoubaoTranscriptionError(
+                        submit_code,
+                        submit_response.headers.get("X-Api-Message", ""),
+                        _is_retryable(submit_code),
+                    )
 
-            deadline = time.monotonic() + self.config.transcription.max_poll_seconds
-            query_meta: dict[str, Any] | None = None
-            query_body: dict[str, Any] = {}
-            while time.monotonic() <= deadline:
-                query_response = client.post(query_url, headers=base_headers, json={})
-                query_meta = _safe_response_meta(query_response)
-                query_code = query_response.headers.get("X-Api-Status-Code", "")
-                if query_code == SUCCESS_CODE:
-                    query_body = _json_body(query_response)
-                    return {
-                        "request_id": request_id,
-                        "submitted_at": now_iso(),
-                        "audio_url": audio_url,
-                        "submit": submit_meta,
-                        "query": {**query_meta, "body": query_body},
-                    }
-                if query_code in PENDING_CODES:
-                    time.sleep(self.config.transcription.poll_interval_seconds)
-                    continue
-                raise DoubaoTranscriptionError(query_code, query_response.headers.get("X-Api-Message", ""), _is_retryable(query_code))
+                deadline = time.monotonic() + self.config.transcription.max_poll_seconds
+                query_meta: dict[str, Any] | None = None
+                query_body: dict[str, Any] = {}
+                while time.monotonic() <= deadline:
+                    query_response = client.post(query_url, headers=base_headers, json={})
+                    query_meta = _safe_response_meta(query_response)
+                    query_code = query_response.headers.get("X-Api-Status-Code", "")
+                    if query_code == SUCCESS_CODE:
+                        query_body = _json_body(query_response)
+                        return {
+                            "request_id": request_id,
+                            "submitted_at": now_iso(),
+                            "audio_url": audio_url,
+                            "submit": submit_meta,
+                            "query": {**query_meta, "body": query_body},
+                        }
+                    if query_code in PENDING_CODES:
+                        time.sleep(self.config.transcription.poll_interval_seconds)
+                        continue
+                    raise DoubaoTranscriptionError(
+                        query_code,
+                        query_response.headers.get("X-Api-Message", ""),
+                        _is_retryable(query_code),
+                    )
+        except (httpx.TimeoutException, httpx.TransportError) as exc:
+            detail = str(exc) or exc.__class__.__name__
+            raise DoubaoTranscriptionError(exc.__class__.__name__, detail, retryable=True) from exc
 
         raise DoubaoTranscriptionError("TRANSCRIPTION_TIMEOUT", "Doubao query timed out", retryable=True)
 
