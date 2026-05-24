@@ -48,6 +48,38 @@ def test_doubao_utterances_convert_to_internal_items():
     assert "API" not in str(result)
 
 
+def test_doubao_utterance_words_are_preserved_and_clamped():
+    result = convert_doubao_result(
+        segment=_segment(),
+        doubao_body={
+            "result": {
+                "utterances": [
+                    {
+                        "start_time": 1000,
+                        "end_time": 3000,
+                        "text": "第一句。",
+                        "words": [
+                            {"text": "第", "start_time": 900, "end_time": 1200, "blank_duration": 0},
+                            {"text": "一", "start_time": 1200, "end_time": 1500, "blank_duration": 0},
+                            {"text": "", "start_time": 1500, "end_time": 1600},
+                            {"text": "坏", "start_time": 2000, "end_time": 1900},
+                            {"text": "句", "start_time": 2800, "end_time": 3200, "blank_duration": 100},
+                        ],
+                    }
+                ],
+            }
+        },
+        model="bigmodel",
+        raw_output_path="intermediate/transcription/raw/segment-0001.doubao.json",
+    )
+
+    assert result["items"][0]["words"] == [
+        {"text": "第", "start": 1.0, "end": 1.2, "blank_duration": 0.0},
+        {"text": "一", "start": 1.2, "end": 1.5, "blank_duration": 0.0},
+        {"text": "句", "start": 2.8, "end": 3.0, "blank_duration": 0.1},
+    ]
+
+
 def test_doubao_text_fallback_adds_review_marker():
     result = convert_doubao_result(
         segment=_segment(),

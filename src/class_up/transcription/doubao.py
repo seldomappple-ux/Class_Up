@@ -176,7 +176,7 @@ def convert_doubao_result(
                 continue
             start = round(float(utterance.get("start_time", 0)) / 1000, 3)
             end = round(float(utterance.get("end_time", 0)) / 1000, 3)
-            items.append(_item(segment["segment_id"], idx, start, end, text))
+            items.append(_item(segment["segment_id"], idx, start, end, text, words=_convert_words(utterance, start, end)))
 
     fallback_review: dict[str, Any] | None = None
     if not items:
@@ -209,16 +209,60 @@ def convert_doubao_result(
     return internal
 
 
-def _item(segment_id: str, idx: int, start: float, end: float, text: str) -> dict[str, Any]:
+def _item(segment_id: str, idx: int, start: float, end: float, text: str, words: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     if end < start:
         raise ValueError("Doubao utterance end_time cannot be smaller than start_time")
-    return {
+    item = {
         "item_id": f"{segment_id}-item-{idx:04d}",
         "start": start,
         "end": end,
         "text": text,
         "confidence": None,
     }
+    if words:
+        item["words"] = words
+    return item
+
+
+def _convert_words(utterance: dict[str, Any], parent_start: float, parent_end: float) -> list[dict[str, Any]]:
+    raw_words = utterance.get("words")
+    if not isinstance(raw_words, list):
+        return []
+    words: list[dict[str, Any]] = []
+    for raw in raw_words:
+        if not isinstance(raw, dict):
+            continue
+        text = str(raw.get("text") or "").strip()
+        if not text:
+            continue
+        start = _milliseconds_to_seconds(raw.get("start_time", parent_start * 1000))
+        end = _milliseconds_to_seconds(raw.get("end_time", parent_end * 1000))
+        if end < start:
+            continue
+        start = _clamp(round(start, 3), parent_start, parent_end)
+        end = _clamp(round(end, 3), parent_start, parent_end)
+        if end < start:
+            continue
+        words.append(
+            {
+                "text": text,
+                "start": start,
+                "end": end,
+                "blank_duration": _milliseconds_to_seconds(raw.get("blank_duration", 0)),
+            }
+        )
+    return words
+
+
+def _milliseconds_to_seconds(value: Any) -> float:
+    try:
+        return round(float(value) / 1000, 3)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _clamp(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(value, upper))
 
 
 def _remote_audio_name(task_name: str, segment_id: str, suffix: str) -> str:

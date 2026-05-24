@@ -19,6 +19,8 @@ Use this file as a sliding index, not a long-form journal. Detailed history live
 
 | Page ID | Date | Title | Status | Path | Related Commit Message |
 | --- | --- | --- | --- | --- | --- |
+| `20260524-7` | `2026-05-24` | Split subtitles on word-level speech gaps | `accepted` | `.agents/progress/entries/2026/2026-05-24-7.md` | fix(subtitles): split chunks on word-level speech gaps |
+| `20260524-6` | `2026-05-24` | Align subtitle chunks with Doubao word timestamps | `accepted` | `.agents/progress/entries/2026/2026-05-24-6.md` | fix(subtitles): align chunks with doubao word timestamps |
 | `20260524-5` | `2026-05-24` | Fix M1 subtitle timeline stability | `accepted` | `.agents/progress/entries/2026/2026-05-24-5.md` | fix(subtitles): stabilize audio timeline mapping and split bounds |
 | `20260524-4` | `2026-05-24` | Record real subtitle timing drift findings | `accepted` | `.agents/progress/entries/2026/2026-05-24-4.md` | docs(subtitles): record real timing drift findings |
 | `20260524-3` | `2026-05-24` | Add layered cleanup policy for remote temp audio and local caches | `accepted` | `.agents/progress/entries/2026/2026-05-24-3.md` | feat(cleanup): add layered cleanup and audit trail |

@@ -149,6 +149,74 @@ def test_merge_applies_linear_timeline_correction(tmp_path):
     assert merged[0]["timeline_correction_applied"] is True
 
 
+def test_merge_applies_timeline_correction_to_words(tmp_path):
+    video = tmp_path / "course.mp4"
+    video.write_bytes(b"video")
+    manifest = Manifest.create(video, tmp_path / "outputs", _config())
+    result_path = manifest.output_dir / "intermediate" / "transcription" / "segment-0001.json"
+    result_path.parent.mkdir(parents=True, exist_ok=True)
+    result_path.write_text(
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "segment_id": "segment-0001",
+                "source_audio": "intermediate/segments/segment-0001.wav",
+                "time_base": "segment_relative",
+                "language": "zh",
+                "provider": "doubao",
+                "model": "bigmodel",
+                "items": [
+                    {
+                        "item_id": "segment-0001-item-0001",
+                        "start": 10.0,
+                        "end": 12.0,
+                        "text": "hello",
+                        "confidence": None,
+                        "words": [{"text": "hello", "start": 10.5, "end": 11.5, "blank_duration": 0}],
+                    }
+                ],
+                "raw_output_path": None,
+                "error": None,
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    manifest.data["media"]["duration_seconds"] = 200.0
+    manifest.data["media"]["normalized_audio"] = {
+        "source_audio_duration_seconds": 100.0,
+        "normalized_duration_seconds": 99.0,
+        "duration_delta_seconds": 1.0,
+        "timeline_drift_warning_threshold_seconds": 0.2,
+    }
+    manifest.set_segments(
+        [
+            {
+                "segment_id": "segment-0001",
+                "parent_segment_id": None,
+                "index": 1,
+                "status": "success",
+                "start": 20.0,
+                "end": 40.0,
+                "overlap_previous_seconds": 0,
+                "overlap_next_seconds": 0,
+                "audio_path": "intermediate/segments/segment-0001.wav",
+                "size_bytes": 1,
+                "upload_limit_mb": 25,
+                "transcription_path": "intermediate/transcription/segment-0001.json",
+                "retry_count": 0,
+                "error": None,
+            }
+        ]
+    )
+
+    merged = merge_transcriptions(manifest)
+
+    ratio = 100.0 / 99.0
+    assert merged[0]["words"][0]["start"] == round(30.5 * ratio, 3)
+    assert merged[0]["words"][0]["end"] == round(31.5 * ratio, 3)
+
+
 def test_write_m1_outputs_uses_source_filename_labels(tmp_path):
     video = tmp_path / "lesson.mp4"
     video.write_bytes(b"video")
@@ -177,3 +245,17 @@ def test_write_m1_outputs_adds_run_suffix_for_repeated_output_dir(tmp_path):
     assert manifest.output_dir.name == "course_2"
     assert subtitle.name == "lesson_Subtitles_2.srt"
     assert transcript.name == "lesson_text_2.txt"
+
+
+def test_write_m1_outputs_keeps_transcript_punctuation_but_cleans_srt(tmp_path):
+    video = tmp_path / "lesson.mp4"
+    video.write_bytes(b"video")
+    manifest = Manifest.create(video, tmp_path / "outputs", _config(), source_filename="lesson.mp4")
+
+    subtitle, transcript = write_m1_outputs(
+        manifest,
+        [{"item_id": "1", "source_segment_id": "segment-0001", "start": 0.0, "end": 1.0, "text": "你好，世界。"}],
+    )
+
+    assert "你好世界" in subtitle.read_text(encoding="utf-8")
+    assert "你好，世界。" in transcript.read_text(encoding="utf-8")

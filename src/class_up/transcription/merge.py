@@ -40,6 +40,7 @@ def merge_transcriptions(manifest: Manifest) -> list[dict[str, Any]]:
                     "start": start,
                     "end": end,
                     "text": str(item["text"]).strip(),
+                    "words": _merge_words(item.get("words"), float(segment["start"]), timeline, start, end),
                     "overlap_policy": "trim_previous_overlap" if item.get("start", 0) == 0 and sequence > 1 else "none",
                     "timeline_correction_applied": timeline.applied,
                     "timeline_correction_ratio": timeline.ratio,
@@ -47,6 +48,40 @@ def merge_transcriptions(manifest: Manifest) -> list[dict[str, Any]]:
             )
             sequence += 1
     return merged
+
+
+def _merge_words(
+    words: Any,
+    segment_start: float,
+    timeline: "_TimelineCorrection",
+    parent_start: float,
+    parent_end: float,
+) -> list[dict[str, Any]]:
+    if not isinstance(words, list):
+        return []
+    merged_words: list[dict[str, Any]] = []
+    for word in words:
+        if not isinstance(word, dict):
+            continue
+        text = str(word.get("text") or "").strip()
+        if not text:
+            continue
+        try:
+            start = timeline.map(segment_start + float(word["start"]))
+            end = timeline.map(segment_start + float(word["end"]))
+        except (KeyError, TypeError, ValueError):
+            continue
+        start = max(parent_start, min(start, parent_end))
+        end = max(start, min(end, parent_end))
+        merged_words.append(
+            {
+                "text": text,
+                "start": round(start, 3),
+                "end": round(end, 3),
+                "blank_duration": word.get("blank_duration", 0),
+            }
+        )
+    return merged_words
 
 
 def write_m1_outputs(manifest: Manifest, items: list[dict[str, Any]]) -> tuple[Path, Path]:

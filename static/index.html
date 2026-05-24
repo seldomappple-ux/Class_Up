@@ -46,16 +46,19 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .error { color: #dc2626; font-size: 13px; }
 .key-wrap { position: relative; }
 .key-wrap input { padding-right: 42px; }
-.key-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #b08050; cursor: pointer; padding: 0; font-size: 15px; width: auto; }
+.key-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: #b08050; cursor: pointer; padding: 0; font-size: 13px; width: auto; font-family: monospace; letter-spacing: -1px; }
 .key-toggle:hover { color: #c2600a; }
 
 /* Progress */
 .big-progress { margin-top: 4px; }
 .big-progress-track { height: 28px; background: #f5ede0; border-radius: 14px; overflow: hidden; position: relative; }
-.big-progress-fill { height: 100%; border-radius: 14px; background: linear-gradient(90deg, #f07820, #e05010); transition: width .6s ease; position: relative; min-width: 0; }
+.big-progress-track::after { content: ''; position: absolute; inset: 0; border-radius: 14px; background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%); background-size: 40% 100%; animation: shimmer 1.8s linear infinite; pointer-events: none; }
+.big-progress-track.done::after { display: none; }
+@keyframes shimmer { 0%{background-position:-80% 0} 100%{background-position:180% 0} }
+.big-progress-fill { height: 100%; border-radius: 14px; background: linear-gradient(90deg, #f07820, #e05010); transition: width .6s ease; position: relative; min-width: 0; z-index: 1; }
 .big-progress-fill.indeterminate { animation: slide 1.6s linear infinite; background-size: 200% 100%; background-image: linear-gradient(90deg, #f07820 0%, #fbbf60 50%, #f07820 100%); width: 100% !important; }
 @keyframes slide { 0%{background-position:100% 0} 100%{background-position:-100% 0} }
-.big-progress-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); pointer-events: none; }
+.big-progress-label { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.25); pointer-events: none; z-index: 2; }
 .big-progress-sub { font-size: 12px; color: #b08050; margin-top: 6px; }
 
 .preview { white-space: pre-wrap; max-height: 200px; overflow: auto; background: #fffdf7; border: 1px solid #f0d9b0; border-radius: 7px; padding: 12px; color: #6b4226; line-height: 1.6; font-family: "Cascadia Code", "Consolas", monospace; font-size: 12px; }
@@ -218,8 +221,10 @@ function deriveProgress(data) {
 function renderProgress(data) {
   const { pct, label, sub, done, err } = deriveProgress(data);
   const fill = $('bigFill');
+  const track = fill.parentElement;
   $('bigLabel').textContent = label;
   $('bigSub').textContent = sub;
+  track.classList.toggle('done', done || err);
   if (err) {
     fill.style.width = '100%';
     fill.classList.remove('indeterminate');
