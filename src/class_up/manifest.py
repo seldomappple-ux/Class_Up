@@ -136,14 +136,24 @@ class Manifest:
     def set_duration(self, duration_seconds: float) -> None:
         self.data["media"]["duration_seconds"] = duration_seconds
 
-    def set_normalized_audio(self, path: Path, audio_format: str, sample_rate: int, channels: int) -> None:
-        self.data["media"]["normalized_audio"] = {
+    def set_normalized_audio(
+        self,
+        path: Path,
+        audio_format: str,
+        sample_rate: int,
+        channels: int,
+        timeline: dict[str, Any] | None = None,
+    ) -> None:
+        normalized_audio = {
             "path": relative_to_root(self.output_dir, path),
             "format": audio_format,
             "sample_rate": sample_rate,
             "channels": channels,
             "size_bytes": path.stat().st_size if path.exists() else None,
         }
+        if timeline:
+            normalized_audio.update(timeline)
+        self.data["media"]["normalized_audio"] = normalized_audio
 
     def set_segments(self, segments: list[dict[str, Any]]) -> None:
         self.data["segments"] = segments

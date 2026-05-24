@@ -5,12 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from class_up.config import AppConfig
-from class_up.manifest import Manifest, error_info
+from class_up.manifest import Manifest, error_info, now_iso
 from class_up.media import ffmpeg
 from class_up.utils.filesystem import relative_to_root
 
 
 LETTERS = "abcdefghijklmnopqrstuvwxyz"
+AUDIO_TIMELINE_DRIFT_WARNING_SECONDS = 0.2
 
 
 def convert_video_to_audio(
@@ -43,18 +44,83 @@ def convert_video_to_audio(
 
 def prepare_audio(video_path: Path, manifest: Manifest, config: AppConfig) -> Path:
     ffmpeg.require_tools()
-    duration = ffmpeg.probe_duration(video_path)
+    source_durations = ffmpeg.probe_media_durations(video_path)
+    duration = source_durations.format_duration_seconds
+    if duration is None:
+        duration = ffmpeg.probe_duration(video_path)
     manifest.set_duration(duration)
     audio_path = manifest.output_dir / "intermediate" / "audio" / f"full_audio.{config.media.audio_format}"
     ffmpeg.extract_audio(video_path, audio_path, config.media.audio_sample_rate, config.media.audio_channels)
+    normalized_durations = ffmpeg.probe_media_durations(audio_path)
+    timeline = _audio_timeline_summary(source_durations, normalized_durations)
     manifest.set_normalized_audio(
         audio_path,
         config.media.audio_format,
         config.media.audio_sample_rate,
         config.media.audio_channels,
+        timeline=timeline,
     )
+    if _should_warn_audio_timeline(timeline):
+        _add_audio_timeline_review(manifest, timeline)
     manifest.save()
     return audio_path
+
+
+def ensure_audio_timeline(video_path: Path, audio_path: Path, manifest: Manifest) -> None:
+    normalized_audio = manifest.data.get("media", {}).get("normalized_audio") or {}
+    if normalized_audio.get("source_audio_duration_seconds") and normalized_audio.get("normalized_duration_seconds"):
+        return
+    ffmpeg.require_tools()
+    source_durations = ffmpeg.probe_media_durations(video_path)
+    normalized_durations = ffmpeg.probe_media_durations(audio_path)
+    timeline = _audio_timeline_summary(source_durations, normalized_durations)
+    normalized_audio.update(timeline)
+    manifest.data["media"]["normalized_audio"] = normalized_audio
+    if _should_warn_audio_timeline(timeline):
+        _add_audio_timeline_review(manifest, timeline)
+    manifest.save()
+
+
+def _audio_timeline_summary(
+    source_durations: ffmpeg.MediaDurations,
+    normalized_durations: ffmpeg.MediaDurations,
+) -> dict[str, Any]:
+    source_audio_duration = source_durations.audio_duration_seconds or source_durations.format_duration_seconds
+    normalized_duration = normalized_durations.audio_duration_seconds or normalized_durations.format_duration_seconds
+    delta = None
+    ratio = None
+    if source_audio_duration and normalized_duration:
+        delta = round(float(source_audio_duration) - float(normalized_duration), 6)
+        if normalized_duration > 0:
+            ratio = round(float(source_audio_duration) / float(normalized_duration), 12)
+    return {
+        "source_format_duration_seconds": source_durations.format_duration_seconds,
+        "source_audio_duration_seconds": source_audio_duration,
+        "normalized_duration_seconds": normalized_duration,
+        "duration_delta_seconds": delta,
+        "timeline_sync_applied": True,
+        "timeline_correction_ratio": ratio,
+        "timeline_drift_warning_threshold_seconds": AUDIO_TIMELINE_DRIFT_WARNING_SECONDS,
+    }
+
+
+def _should_warn_audio_timeline(timeline: dict[str, Any]) -> bool:
+    delta = timeline.get("duration_delta_seconds")
+    return isinstance(delta, (int, float)) and abs(float(delta)) > AUDIO_TIMELINE_DRIFT_WARNING_SECONDS
+
+
+def _add_audio_timeline_review(manifest: Manifest, timeline: dict[str, Any]) -> None:
+    manifest.add_review(
+        {
+            "type": "audio_timeline_drift_warning",
+            "created_at": now_iso(),
+            "message": "Normalized audio duration differs from source audio duration; subtitle merge will apply linear timeline correction.",
+            "source_audio_duration_seconds": timeline.get("source_audio_duration_seconds"),
+            "normalized_duration_seconds": timeline.get("normalized_duration_seconds"),
+            "duration_delta_seconds": timeline.get("duration_delta_seconds"),
+        }
+    )
+
 
 
 def planned_ranges(duration: float, segment_seconds: float, overlap_seconds: float) -> list[tuple[float, float, float, float]]:

@@ -45,6 +45,28 @@ def test_split_subtitle_items_breaks_long_multi_sentence_text():
     assert items[0]["start"] == 10.0
     assert items[-1]["end"] == 18.0
     assert [item["start"] for item in items] == sorted(item["start"] for item in items)
+    assert items[0]["split_index"] == 1
+    assert items[-1]["split_count"] == len(items)
+    assert all(item["time_estimated"] is True for item in items)
+
+
+def test_split_subtitle_items_does_not_force_split_for_too_short_parent():
+    items = split_subtitle_items(
+        [
+            {
+                "item_id": "parent-1",
+                "start": 10.0,
+                "end": 10.5,
+                "text": "第一句话很长，需要拆开。第二句话也很长，需要变成另一条字幕。",
+            },
+            {"item_id": "parent-2", "start": 11.0, "end": 12.0, "text": "下一句"},
+        ]
+    )
+
+    assert len(items) == 2
+    assert items[0]["start"] == 10.0
+    assert items[0]["end"] == 10.5
+    assert items[1]["start"] == 11.0
 
 
 def test_render_srt_outputs_split_blocks_for_long_text():

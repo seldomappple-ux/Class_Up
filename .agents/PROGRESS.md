@@ -19,6 +19,8 @@ Use this file as a sliding index, not a long-form journal. Detailed history live
 
 | Page ID | Date | Title | Status | Path | Related Commit Message |
 | --- | --- | --- | --- | --- | --- |
+| `20260524-5` | `2026-05-24` | Fix M1 subtitle timeline stability | `accepted` | `.agents/progress/entries/2026/2026-05-24-5.md` | fix(subtitles): stabilize audio timeline mapping and split bounds |
+| `20260524-4` | `2026-05-24` | Record real subtitle timing drift findings | `accepted` | `.agents/progress/entries/2026/2026-05-24-4.md` | docs(subtitles): record real timing drift findings |
 | `20260524-3` | `2026-05-24` | Add layered cleanup policy for remote temp audio and local caches | `accepted` | `.agents/progress/entries/2026/2026-05-24-3.md` | feat(cleanup): add layered cleanup and audit trail |
 | `20260524-2` | `2026-05-24` | Improve subtitle readability, output naming, and same-source reuse | `accepted` | `.agents/progress/entries/2026/2026-05-24-2.md` | feat(transcription): improve subtitle output and reuse same-source cache |
 | `20260524-1` | `2026-05-24` | Add SFTP upload integrity checks and segment retry | `accepted` | `.agents/progress/entries/2026/2026-05-24-1.md` | fix(transcription): verify sftp uploads and retry failed segments |

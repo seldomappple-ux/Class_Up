@@ -47,6 +47,9 @@ def split_subtitle_items(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if len(chunks) == 1 and duration <= MAX_SUBTITLE_DURATION_SECONDS:
             split_items.append({**item, "text": chunks[0]})
             continue
+        if len(chunks) > 1 and duration < len(chunks) * MIN_SUBTITLE_DURATION_SECONDS:
+            split_items.append(dict(item))
+            continue
         split_items.extend(_distribute_time(item, chunks, start, end))
     return split_items
 
@@ -82,6 +85,8 @@ def _split_long_text(text: str, max_chars: int) -> list[str]:
 
 
 def _distribute_time(item: dict[str, Any], chunks: list[str], start: float, end: float) -> list[dict[str, Any]]:
+    if len(chunks) <= 1:
+        return [{**item, "start": start, "end": end, "text": chunks[0] if chunks else str(item["text"]).strip()}]
     total_chars = sum(max(1, len(chunk)) for chunk in chunks)
     cursor = start
     results: list[dict[str, Any]] = []
@@ -94,8 +99,34 @@ def _distribute_time(item: dict[str, Any], chunks: list[str], start: float, end:
             chunk_end = min(end, cursor + chunk_duration)
         if chunk_end <= cursor:
             chunk_end = min(end, cursor + MIN_SUBTITLE_DURATION_SECONDS)
-        results.append({**item, "start": round(cursor, 3), "end": round(chunk_end, 3), "text": chunk})
+        if index == 0:
+            child_start = start
+        else:
+            child_start = cursor
+        if index == len(chunks) - 1:
+            child_end = end
+        else:
+            child_end = chunk_end
+        child_start = max(start, min(child_start, end))
+        child_end = max(child_start, min(child_end, end))
+        if child_end <= child_start:
+            break
+        results.append(
+            {
+                **item,
+                "start": round(child_start, 3),
+                "end": round(child_end, 3),
+                "text": chunk,
+                "source_item_id": item.get("item_id"),
+                "split_index": index + 1,
+                "split_count": len(chunks),
+                "time_estimated": True,
+            }
+        )
         cursor = chunk_end
         if cursor >= end:
             break
+    if results:
+        results[0]["start"] = round(start, 3)
+        results[-1]["end"] = round(end, 3)
     return results

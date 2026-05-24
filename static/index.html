@@ -68,6 +68,17 @@ button:disabled { opacity: .45; cursor: not-allowed; }
     <div class="logo">Class Up</div>
     <div class="sidebar-label">历史任务</div>
     <div id="jobList"><div class="hint" style="padding:0 8px">暂无任务</div></div>
+    <div class="sidebar-label" style="margin-top:24px">清理</div>
+    <div style="padding:0 8px">
+      <select id="cleanupTarget" style="margin-bottom:8px;font-size:12px">
+        <option value="all">全部</option>
+        <option value="local">本地文件</option>
+        <option value="remote">远程文件</option>
+      </select>
+      <button type="button" id="cleanupPreviewBtn" style="width:100%;margin-bottom:6px;font-size:12px;padding:7px 10px">预览清理</button>
+      <button type="button" id="cleanupRunBtn" style="width:100%;font-size:12px;padding:7px 10px;background:linear-gradient(135deg,#dc2626,#b91c1c)">执行清理</button>
+      <div id="cleanupResult" style="margin-top:8px;font-size:11px;color:#6b4226;word-break:break-all"></div>
+    </div>
   </aside>
   <main class="main">
     <h1>网课转录助手</h1>
@@ -475,6 +486,26 @@ $('apiKey').addEventListener('blur', saveKeyToServer);
 syncProviderDefaults();
 loadSavedKeyStatus();
 loadJobs();
+
+$('cleanupPreviewBtn').addEventListener('click', async () => {
+  $('cleanupResult').textContent = '加载中...';
+  const target = $('cleanupTarget').value;
+  const res = await fetch(`/cleanup/preview?target=${target}`);
+  const data = await res.json();
+  const items = data.items || [];
+  $('cleanupResult').textContent = items.length ? `将清理 ${items.length} 项：\n` + items.map(i => i.path || i).join('\n') : '无需清理';
+});
+
+$('cleanupRunBtn').addEventListener('click', async () => {
+  if (!confirm('确认执行清理？此操作不可撤销。')) return;
+  $('cleanupResult').textContent = '清理中...';
+  const fd = new FormData();
+  fd.append('target', $('cleanupTarget').value);
+  fd.append('reason', 'manual');
+  const res = await fetch('/cleanup/run', { method: 'POST', body: fd });
+  const data = await res.json();
+  $('cleanupResult').textContent = `已清理 ${data.deleted ?? 0} 项`;
+});
 </script>
 </body>
 </html>

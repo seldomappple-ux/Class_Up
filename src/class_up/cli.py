@@ -7,7 +7,7 @@ from pathlib import Path
 from class_up.cleanup import preview_cleanup, run_cleanup
 from class_up.config import ConfigError, load_config
 from class_up.manifest import load_or_create_manifest
-from class_up.media.audio import convert_video_to_audio, prepare_audio, segment_audio
+from class_up.media.audio import convert_video_to_audio, ensure_audio_timeline, prepare_audio, segment_audio
 from class_up.media.ffmpeg import FfmpegError
 from class_up.transcription.merge import merge_transcriptions, write_m1_outputs
 from class_up.transcription.service import transcribe_segments
@@ -68,6 +68,7 @@ def run_m1(args: argparse.Namespace) -> int:
             audio_path = prepare_audio(args.video, manifest, config)
         else:
             audio_path = manifest.output_dir / manifest.data["media"]["normalized_audio"]["path"]
+            ensure_audio_timeline(args.video, audio_path, manifest)
         if not manifest.data["segments"]:
             segment_audio(audio_path, manifest, config)
         transcribe_segments(manifest, config)

@@ -19,7 +19,7 @@ from class_up.config import (
 )
 from class_up.manifest import Manifest, load_or_create_manifest
 from class_up.manifest import error_info
-from class_up.media.audio import prepare_audio, segment_audio
+from class_up.media.audio import ensure_audio_timeline, prepare_audio, segment_audio
 from class_up.media.ffmpeg import FfmpegError
 from class_up.transcription.merge import merge_transcriptions, write_m1_outputs
 from class_up.transcription.service import transcribe_segments
@@ -71,6 +71,9 @@ def run_m1_pipeline(manifest: Manifest, config: AppConfig) -> None:
     manifest.save()
     try:
         if _reuse_completed_m1_cache(manifest):
+            video_path = Path(manifest.data["input"]["video_path"])
+            audio_path = manifest.output_dir / manifest.data["media"]["normalized_audio"]["path"]
+            ensure_audio_timeline(video_path, audio_path, manifest)
             merged = merge_transcriptions(manifest)
             write_m1_outputs(manifest, merged)
             manifest.set_stage("m1", "success")
@@ -80,6 +83,7 @@ def run_m1_pipeline(manifest: Manifest, config: AppConfig) -> None:
             audio_path = prepare_audio(video_path, manifest, config)
         else:
             audio_path = manifest.output_dir / manifest.data["media"]["normalized_audio"]["path"]
+            ensure_audio_timeline(video_path, audio_path, manifest)
         if not manifest.data["segments"]:
             segment_audio(audio_path, manifest, config)
         transcribe_segments(manifest, config)

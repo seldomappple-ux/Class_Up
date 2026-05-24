@@ -103,6 +103,52 @@ def test_merge_uses_index_not_segment_id(tmp_path):
     assert [item["source_segment_id"] for item in merged] == ["segment-0003a", "segment-0002"]
 
 
+def test_merge_applies_linear_timeline_correction(tmp_path):
+    video = tmp_path / "course.mp4"
+    video.write_bytes(b"video")
+    manifest = Manifest.create(video, tmp_path / "outputs", _config())
+    result_path = manifest.output_dir / "intermediate" / "transcription" / "segment-0001.json"
+    _write_result(result_path, "segment-0001", "late")
+    manifest.data["media"]["duration_seconds"] = 3858.231667
+    manifest.data["media"]["normalized_audio"] = {
+        "path": "intermediate/audio/full_audio.wav",
+        "format": "wav",
+        "sample_rate": 16000,
+        "channels": 1,
+        "size_bytes": 1,
+        "source_audio_duration_seconds": 3858.159125,
+        "normalized_duration_seconds": 3856.725313,
+        "duration_delta_seconds": 1.433812,
+        "timeline_drift_warning_threshold_seconds": 0.2,
+    }
+    manifest.set_segments(
+        [
+            {
+                "segment_id": "segment-0001",
+                "parent_segment_id": None,
+                "index": 1,
+                "status": "success",
+                "start": 3600.0,
+                "end": 3601.0,
+                "overlap_previous_seconds": 0,
+                "overlap_next_seconds": 0,
+                "audio_path": "intermediate/segments/segment-0001.wav",
+                "size_bytes": 1,
+                "upload_limit_mb": 25,
+                "transcription_path": "intermediate/transcription/segment-0001.json",
+                "retry_count": 0,
+                "error": None,
+            }
+        ]
+    )
+
+    merged = merge_transcriptions(manifest)
+
+    ratio = 3858.159125 / 3856.725313
+    assert merged[0]["start"] == round(3600.0 * ratio, 3)
+    assert merged[0]["timeline_correction_applied"] is True
+
+
 def test_write_m1_outputs_uses_source_filename_labels(tmp_path):
     video = tmp_path / "lesson.mp4"
     video.write_bytes(b"video")

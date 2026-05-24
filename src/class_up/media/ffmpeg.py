@@ -33,6 +33,12 @@ class CommandResult:
     stderr: str
 
 
+@dataclass(frozen=True)
+class MediaDurations:
+    format_duration_seconds: float | None
+    audio_duration_seconds: float | None
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
@@ -126,6 +132,29 @@ def probe_duration(video_path: Path) -> float:
     return float(data["format"]["duration"])
 
 
+def probe_media_durations(path: Path) -> MediaDurations:
+    result = run_command(
+        [
+            tool_command("ffprobe"),
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration:stream=codec_type,duration",
+            "-of",
+            "json",
+            str(path),
+        ]
+    )
+    data = json.loads(result.stdout)
+    format_duration = _optional_float(data.get("format", {}).get("duration"))
+    audio_duration: float | None = None
+    for stream in data.get("streams", []):
+        if isinstance(stream, dict) and stream.get("codec_type") == "audio":
+            audio_duration = _optional_float(stream.get("duration"))
+            break
+    return MediaDurations(format_duration, audio_duration)
+
+
 def extract_audio(video_path: Path, output_path: Path, sample_rate: int, channels: int) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     run_command(
@@ -135,6 +164,8 @@ def extract_audio(video_path: Path, output_path: Path, sample_rate: int, channel
             "-i",
             str(video_path),
             "-vn",
+            "-af",
+            "aresample=async=1:first_pts=0",
             "-acodec",
             "pcm_s16le",
             "-ar",
@@ -163,3 +194,12 @@ def cut_audio(source_audio: Path, output_path: Path, start: float, duration: flo
             str(output_path),
         ]
     )
+
+
+def _optional_float(value: object) -> float | None:
+    if value in {None, "N/A"}:
+        return None
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
