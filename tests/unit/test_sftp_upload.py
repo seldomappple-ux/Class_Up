@@ -71,6 +71,7 @@ def test_sftp_upload_succeeds_when_remote_size_matches(tmp_path, monkeypatch):
     uploaded = SftpUploadService(UploadConfig(provider="sftp")).upload_audio(audio, "segment.wav")
 
     assert uploaded.public_url == "https://boneorbit.com/class-up/audio/segment.wav"
+    assert uploaded.remote_path == "/var/www/class-up/audio/segment.wav"
     assert sftp.put_calls == [(str(audio), "/var/www/class-up/audio/segment.wav")]
     assert sftp.removed == []
 
@@ -86,4 +87,14 @@ def test_sftp_upload_size_mismatch_removes_remote_and_raises(tmp_path, monkeypat
         SftpUploadService(UploadConfig(provider="sftp")).upload_audio(audio, "segment.wav")
 
     assert exc.value.retryable is True
+    assert sftp.removed == ["/var/www/class-up/audio/segment.wav"]
+
+
+def test_sftp_delete_audio_removes_remote_file(tmp_path, monkeypatch):
+    sftp = FakeSftp(remote_size=0)
+    _install_fake_paramiko(monkeypatch, sftp)
+    _set_upload_env(monkeypatch, str(tmp_path / "key"))
+
+    SftpUploadService(UploadConfig(provider="sftp")).delete_audio("segment.wav")
+
     assert sftp.removed == ["/var/www/class-up/audio/segment.wav"]

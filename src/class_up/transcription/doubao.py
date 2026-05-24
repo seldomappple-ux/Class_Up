@@ -41,8 +41,21 @@ class DoubaoTranscriptionService(TranscriptionService):
         output_dir = audio_path.parents[2]
         remote_name = _remote_audio_name(output_dir.name, segment["segment_id"], audio_path.suffix)
         uploaded = self.upload_service.upload_audio(audio_path, remote_name)
+        remote_audio = {
+            "remote_name": uploaded.remote_name,
+            "remote_path": uploaded.remote_path,
+            "public_url": uploaded.public_url,
+            "uploaded_at": now_iso(),
+            "deleted_at": None,
+            "delete_error": None,
+            "size_bytes": audio_path.stat().st_size if audio_path.exists() else None,
+        }
         request_id = uuid.uuid4().hex
-        raw = self._submit_and_query(api_key, request_id, uploaded.public_url)
+        try:
+            raw = self._submit_and_query(api_key, request_id, uploaded.public_url)
+        except Exception as exc:
+            setattr(exc, "remote_audio", remote_audio)
+            raise
 
         raw_dir = output_dir / "intermediate" / "transcription" / "raw"
         raw_dir.mkdir(parents=True, exist_ok=True)
@@ -55,6 +68,7 @@ class DoubaoTranscriptionService(TranscriptionService):
             model=self.config.transcription.model or "bigmodel",
             raw_output_path=relative_to_root(output_dir, raw_path),
         )
+        result["_remote_audio"] = remote_audio
         return result
 
     def _submit_and_query(self, api_key: str, request_id: str, audio_url: str) -> dict[str, Any]:

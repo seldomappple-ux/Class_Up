@@ -4,15 +4,20 @@ import json
 import os
 import shutil
 import signal
+import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse, FileResponse as FR, HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
+from class_up.cleanup import preview_cleanup, run_cleanup
 from class_up.api.jobs import UPLOADS_DIR, build_config, find_manifest, list_jobs, run_m1_pipeline
+from class_up.config import CleanupConfig, UploadConfig
 from class_up.manifest import load_or_create_manifest
 from class_up.media.audio import convert_video_to_audio
 
@@ -29,6 +34,7 @@ PROVIDER_API_KEY_ENVS = {
     "doubao": "CLASS_UP_DOUBAO_API_KEY",
     "remote": "CLASS_UP_TRANSCRIPTION_API_KEY",
 }
+_CLEANUP_THREAD_STARTED = False
 
 
 def _now_iso() -> str:
@@ -253,9 +259,41 @@ async def shutdown():
     return {"ok": True}
 
 
+@app.get("/cleanup/preview")
+async def cleanup_preview(target: str = "all"):
+    if target not in {"local", "remote", "all"}:
+        raise HTTPException(status_code=400, detail="target must be one of: local, remote, all")
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    return preview_cleanup(output_root=OUTPUT_ROOT, cleanup=CleanupConfig(), upload=UploadConfig(), target=target)
+
+
+@app.post("/cleanup/run")
+async def cleanup_run(target: str = Form("all"), reason: str = Form("manual")):
+    if target not in {"local", "remote", "all"}:
+        raise HTTPException(status_code=400, detail="target must be one of: local, remote, all")
+    load_dotenv(PROJECT_ROOT / ".env", override=False)
+    return run_cleanup(output_root=OUTPUT_ROOT, cleanup=CleanupConfig(), upload=UploadConfig(), target=target, reason=reason)
+
+
+def _start_cleanup_thread() -> None:
+    global _CLEANUP_THREAD_STARTED
+    if _CLEANUP_THREAD_STARTED:
+        return
+    _CLEANUP_THREAD_STARTED = True
+
+    def _loop() -> None:
+        cleanup = CleanupConfig()
+        while True:
+            time.sleep(cleanup.background_interval_hours * 3600)
+            try:
+                run_cleanup(output_root=OUTPUT_ROOT, cleanup=cleanup, upload=UploadConfig(), target="local", reason="background")
+            except Exception:
+                pass
+
+    threading.Thread(target=_loop, daemon=True).start()
+
+
 def _run(mock: bool = False, port: int = 8000) -> None:
-    import threading
-    import time
     import webbrowser
 
     import uvicorn
@@ -267,6 +305,7 @@ def _run(mock: bool = False, port: int = 8000) -> None:
         time.sleep(1)
         webbrowser.open(f"http://localhost:{port}")
 
+    _start_cleanup_thread()
     threading.Thread(target=_open, daemon=True).start()
     uvicorn.run("class_up.api.app:app", host="0.0.0.0", port=port, reload=False)
 

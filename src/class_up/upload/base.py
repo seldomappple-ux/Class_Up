@@ -9,9 +9,13 @@ from pathlib import Path
 class UploadedAudio:
     public_url: str
     remote_name: str
+    remote_path: str = ""
 
 
 class UploadService(ABC):
     @abstractmethod
     def upload_audio(self, local_path: Path, remote_name: str) -> UploadedAudio:
+        raise NotImplementedError
+
+    def delete_audio(self, remote_name: str) -> None:
         raise NotImplementedError

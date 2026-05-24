@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from class_up.cleanup import preview_cleanup, run_cleanup
 from class_up.config import ConfigError, load_config
 from class_up.manifest import load_or_create_manifest
 from class_up.media.audio import convert_video_to_audio, prepare_audio, segment_audio
@@ -43,6 +44,16 @@ def build_parser() -> argparse.ArgumentParser:
     audio.add_argument("--channels", type=int, default=1, help="Output audio channels.")
     audio.add_argument("--overwrite", action="store_true", help="Overwrite an existing output file.")
     audio.set_defaults(handler=run_audio)
+
+    cleanup = subparsers.add_parser("cleanup", help="Preview or execute layered cleanup.")
+    cleanup.add_argument("--config", type=Path, default=Path("config/config.example.yaml"), help="Config YAML path.")
+    cleanup.add_argument("--output-root", type=Path, default=None, help="Override project.output_root.")
+    cleanup.add_argument("--target", choices=["local", "remote", "all"], default="all", help="Cleanup target.")
+    mode = cleanup.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help="Preview cleanup without deleting files.")
+    mode.add_argument("--execute", action="store_true", help="Execute cleanup.")
+    cleanup.add_argument("--reason", default="manual", help="Audit trigger/reason.")
+    cleanup.set_defaults(handler=run_cleanup_command)
     return parser
 
 
@@ -94,9 +105,22 @@ def run_audio(args: argparse.Namespace) -> int:
         return 1
 
 
+def run_cleanup_command(args: argparse.Namespace) -> int:
+    config = load_config(args.config)
+    output_root = (args.output_root or Path(config.project.output_root)).resolve()
+    if args.execute:
+        result = run_cleanup(output_root=output_root, cleanup=config.cleanup, upload=config.upload, target=args.target, reason=args.reason)
+    else:
+        result = preview_cleanup(output_root=output_root, cleanup=config.cleanup, upload=config.upload, target=args.target)
+    print(f"Cleanup {'executed' if args.execute else 'preview'}: {result['count']} item(s), estimated_bytes={result['estimated_bytes']}, released_bytes={result['released_bytes']}")
+    for item in result["items"]:
+        print(f"- {item['target_type']} {item['bytes']} {item['path']} ({item['reason']})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv and argv[0] not in {"m1", "audio", "-h", "--help"}:
+    if argv and argv[0] not in {"m1", "audio", "cleanup", "-h", "--help"}:
         parser = build_m1_parser()
         args = parser.parse_args(argv)
         handler = run_m1

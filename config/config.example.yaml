@@ -52,3 +52,12 @@ analysis:
 output:
   keep_intermediate: true
   overwrite: false
+
+cleanup:
+  remote_audio_ttl_hours: 6
+  successful_upload_ttl_hours: 24
+  failed_upload_ttl_hours: 168
+  intermediate_ttl_hours: 168
+  background_interval_hours: 6
+  disk_min_free_gb: 10
+  protect_final_outputs: true

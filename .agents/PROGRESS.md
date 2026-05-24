@@ -19,6 +19,9 @@ Use this file as a sliding index, not a long-form journal. Detailed history live
 
 | Page ID | Date | Title | Status | Path | Related Commit Message |
 | --- | --- | --- | --- | --- | --- |
+| `20260524-3` | `2026-05-24` | Add layered cleanup policy for remote temp audio and local caches | `accepted` | `.agents/progress/entries/2026/2026-05-24-3.md` | feat(cleanup): add layered cleanup and audit trail |
+| `20260524-2` | `2026-05-24` | Improve subtitle readability, output naming, and same-source reuse | `accepted` | `.agents/progress/entries/2026/2026-05-24-2.md` | feat(transcription): improve subtitle output and reuse same-source cache |
+| `20260524-1` | `2026-05-24` | Add SFTP upload integrity checks and segment retry | `accepted` | `.agents/progress/entries/2026/2026-05-24-1.md` | fix(transcription): verify sftp uploads and retry failed segments |
 | `20260519-4` | `2026-05-19` | Implement Doubao ASR provider path | `accepted` | `.agents/progress/entries/2026/2026-05-19-4.md` | feat(m1): add doubao asr provider and sftp upload path |
 | `20260519-3` | `2026-05-19` | Define Doubao ASR integration protocol | `draft` | `.agents/progress/entries/2026/2026-05-19-3.md` | docs(m1): define doubao asr integration protocol |
 | `20260519-2` | `2026-05-19` | Add FastAPI Web UI for M1 Pipeline | `draft` | `.agents/progress/entries/2026/2026-05-19-2.md` | feat(web): add FastAPI web UI with start/start_mock and auto-shutdown |

@@ -36,6 +36,9 @@ manifest 中第 7 段只记录了通用 `TRANSCRIPTION_FAILED`，`detail` 为空
 - 重试次数沿用 `transcription.max_retries`，默认 3 次重试，即最多 4 次尝试。
 - 每次失败要写入 segment 的 `retry_count` 和 `error.detail`，格式包含 `attempt=x/y`、`error_type` 和具体 detail。
 - `httpx.TimeoutException` 与 `httpx.TransportError` 必须包装成可重试 `DoubaoTranscriptionError`，避免 manifest 中出现空 detail。
+- 上传成功后 manifest 必须记录 `segments[].remote_audio`，包含远端文件名、远端路径、公网 URL、上传时间和删除状态。
+- 豆包识别完成后主动删除远端中转音频；删除失败只写 warning/review 和 cleanup audit，不影响转录成功。
+- 后台清理继续按 `cleanup.remote_audio_ttl_hours` 兜底清理远端目录，默认 6 小时，防止服务器空间被中转音频撑满。
 
 ## 验证
 
@@ -45,6 +48,8 @@ manifest 中第 7 段只记录了通用 `TRANSCRIPTION_FAILED`，`detail` 为空
 tests/unit/test_sftp_upload.py
 tests/unit/test_transcription_retry.py
 tests/unit/test_doubao_network_retry.py
+tests/unit/test_cleanup.py
+tests/unit/test_cleanup_api.py
 ```
 
 全量验证：
@@ -56,7 +61,7 @@ python -m pytest
 结果：
 
 ```text
-31 passed
+44 passed
 ```
 
 ## 排查命令

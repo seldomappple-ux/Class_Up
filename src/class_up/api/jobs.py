@@ -147,6 +147,11 @@ def _cache_candidate_matches(
         return False
     if any(segment.get("status") != "success" or not segment.get("transcription_path") for segment in candidate.data["segments"]):
         return False
+    for segment in candidate.data["segments"]:
+        transcription_path = candidate.output_dir / segment["transcription_path"]
+        audio_path = candidate.output_dir / segment["audio_path"]
+        if not transcription_path.exists() or not audio_path.exists():
+            return False
     return _cache_relevant_config(current_summary) == _cache_relevant_config(candidate.data.get("config_summary", {}))
 
 

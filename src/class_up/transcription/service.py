@@ -5,8 +5,9 @@ import time
 from pathlib import Path
 from typing import Any
 
+from class_up.cleanup import cleanup_remote_audio_record
 from class_up.config import AppConfig
-from class_up.manifest import Manifest, error_info
+from class_up.manifest import Manifest, error_info, now_iso
 from class_up.transcription.base import TranscriptionService
 from class_up.transcription.doubao import DoubaoTranscriptionError, DoubaoTranscriptionService
 from class_up.upload import UploadError
@@ -82,6 +83,7 @@ def transcribe_segments(manifest: Manifest, config: AppConfig, service: Transcri
                 audio_path = resolve_under_root(manifest.output_dir, segment["audio_path"])
                 result = service.transcribe(segment, audio_path)
                 review = result.pop("_review", None)
+                remote_audio = result.pop("_remote_audio", None)
                 validate_transcription_result(result)
                 output_path = transcription_dir / f"{segment['segment_id']}.json"
                 output_path.write_text(json.dumps(result, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -94,9 +96,13 @@ def transcribe_segments(manifest: Manifest, config: AppConfig, service: Transcri
                     retry_count=retry_count,
                     error=None,
                 )
+                if isinstance(remote_audio, dict):
+                    manifest.update_segment(segment["segment_id"], remote_audio=remote_audio)
+                    _cleanup_segment_remote_audio(manifest, config, segment["segment_id"], remote_audio)
                 manifest.save()
                 break
             except Exception as exc:
+                remote_audio = getattr(exc, "remote_audio", None)
                 retryable = _is_retryable_exception(exc)
                 failure = error_info(
                     "TRANSCRIPTION_FAILED",
@@ -105,7 +111,12 @@ def transcribe_segments(manifest: Manifest, config: AppConfig, service: Transcri
                     retryable=retryable,
                 )
                 last_failure = failure
-                manifest.update_segment(segment["segment_id"], status="failed", retry_count=retry_count, error=failure)
+                updates: dict[str, Any] = {"status": "failed", "retry_count": retry_count, "error": failure}
+                if isinstance(remote_audio, dict):
+                    updates["remote_audio"] = remote_audio
+                manifest.update_segment(segment["segment_id"], **updates)
+                if isinstance(remote_audio, dict):
+                    _cleanup_segment_remote_audio(manifest, config, segment["segment_id"], remote_audio)
                 manifest.save()
                 if not retryable or attempt >= max_attempts:
                     manifest.add_error(failure)
@@ -131,6 +142,26 @@ def _failure_detail(exc: Exception, attempt: int, max_attempts: int) -> str:
 
 def _retry_delay_seconds(attempt: int) -> float:
     return [2.0, 5.0, 10.0][min(attempt - 1, 2)]
+
+
+def _cleanup_segment_remote_audio(manifest: Manifest, config: AppConfig, segment_id: str, remote_audio: dict[str, Any]) -> None:
+    event = cleanup_remote_audio_record(config.upload, remote_audio, trigger="segment_complete")
+    updates = dict(remote_audio)
+    if event["success"]:
+        updates["deleted_at"] = now_iso()
+        updates["delete_error"] = None
+    else:
+        updates["delete_error"] = event["error"]
+        manifest.add_review(
+            {
+                "type": "remote_audio_cleanup_failed",
+                "segment_id": segment_id,
+                "created_at": now_iso(),
+                "message": event["error"],
+                "remote_name": remote_audio.get("remote_name"),
+            }
+        )
+    manifest.update_segment(segment_id, remote_audio=updates)
 
 
 def validate_transcription_result(result: dict[str, Any]) -> None:

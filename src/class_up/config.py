@@ -71,6 +71,17 @@ class OutputConfig:
 
 
 @dataclass(frozen=True)
+class CleanupConfig:
+    remote_audio_ttl_hours: float = 6
+    successful_upload_ttl_hours: float = 24
+    failed_upload_ttl_hours: float = 168
+    intermediate_ttl_hours: float = 168
+    background_interval_hours: float = 6
+    disk_min_free_gb: float = 10
+    protect_final_outputs: bool = True
+
+
+@dataclass(frozen=True)
 class AppConfig:
     project: ProjectConfig
     media: MediaConfig
@@ -78,6 +89,7 @@ class AppConfig:
     upload: UploadConfig
     analysis: AnalysisConfig
     output: OutputConfig
+    cleanup: CleanupConfig = CleanupConfig()
 
     @property
     def transcription_api_key(self) -> str | None:
@@ -135,6 +147,7 @@ def load_config(config_path: str | Path, dotenv_path: str | Path | None = None) 
         upload=UploadConfig(**_section(data, "upload")),
         analysis=AnalysisConfig(**_section(data, "analysis")),
         output=OutputConfig(**_section(data, "output")),
+        cleanup=CleanupConfig(**_section(data, "cleanup")),
     )
     validate_config(config)
     return config
@@ -159,6 +172,18 @@ def validate_config(config: AppConfig) -> None:
         raise ConfigError("upload.provider must be one of: none, sftp")
     if config.upload.port < 1:
         raise ConfigError("upload.port must be greater than or equal to 1")
+    if config.cleanup.remote_audio_ttl_hours < 0:
+        raise ConfigError("cleanup.remote_audio_ttl_hours cannot be negative")
+    if config.cleanup.successful_upload_ttl_hours < 0:
+        raise ConfigError("cleanup.successful_upload_ttl_hours cannot be negative")
+    if config.cleanup.failed_upload_ttl_hours < 0:
+        raise ConfigError("cleanup.failed_upload_ttl_hours cannot be negative")
+    if config.cleanup.intermediate_ttl_hours < 0:
+        raise ConfigError("cleanup.intermediate_ttl_hours cannot be negative")
+    if config.cleanup.background_interval_hours <= 0:
+        raise ConfigError("cleanup.background_interval_hours must be greater than 0")
+    if config.cleanup.disk_min_free_gb < 0:
+        raise ConfigError("cleanup.disk_min_free_gb cannot be negative")
 
 
 def build_config_summary(config: AppConfig) -> dict[str, Any]:
@@ -196,4 +221,5 @@ def build_config_summary(config: AppConfig) -> dict[str, Any]:
             "timeout_seconds": config.analysis.timeout_seconds,
             "max_retries": config.analysis.max_retries,
         },
+        "cleanup": vars(config.cleanup),
     }
